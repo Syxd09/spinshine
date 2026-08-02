@@ -14,13 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      blocked_dates: {
+        Row: {
+          blocked_on: string
+          created_at: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_on: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_on?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          address: string
+          created_at: string
+          customer_name: string
+          delivery_date: string | null
+          delivery_slot: string | null
+          email: string | null
+          estimated_price: number
+          id: string
+          landmark: string | null
+          mode: string
+          notes: string | null
+          order_ref: string
+          payment_method: string
+          phone: string
+          pickup_date: string
+          pickup_slot: string
+          service: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          customer_name: string
+          delivery_date?: string | null
+          delivery_slot?: string | null
+          email?: string | null
+          estimated_price?: number
+          id?: string
+          landmark?: string | null
+          mode?: string
+          notes?: string | null
+          order_ref: string
+          payment_method?: string
+          phone: string
+          pickup_date: string
+          pickup_slot: string
+          service: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          customer_name?: string
+          delivery_date?: string | null
+          delivery_slot?: string | null
+          email?: string | null
+          estimated_price?: number
+          id?: string
+          landmark?: string | null
+          mode?: string
+          notes?: string | null
+          order_ref?: string
+          payment_method?: string
+          phone?: string
+          pickup_date?: string
+          pickup_slot?: string
+          service?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      slot_availability: {
+        Args: { _date: string; _mode?: string }
+        Returns: {
+          remaining: number
+          slot: string
+        }[]
+      }
+      track_booking: {
+        Args: { _order_ref: string; _phone: string }
+        Returns: {
+          created_at: string
+          delivery_date: string
+          delivery_slot: string
+          estimated_price: number
+          mode: string
+          order_ref: string
+          pickup_date: string
+          pickup_slot: string
+          service: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
