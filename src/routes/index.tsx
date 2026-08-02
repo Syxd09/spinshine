@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Reveal } from "@/components/site/Reveal";
+import { ScrollProgress, useParallax, CountUp } from "@/components/site/motion";
+
 import { BeforeAfter } from "@/components/site/BeforeAfter";
 import hero from "@/assets/hero.jpg";
 import curtains from "@/assets/service-curtains.jpg";
@@ -137,10 +140,12 @@ const faqs = [
 function Home() {
   return (
     <div className="min-h-screen bg-background">
+      <ScrollProgress />
       <Header />
       <main>
         <Hero />
         <TrustStrip />
+        <Stats />
         <Services />
         <Process />
         <OnSite />
@@ -155,70 +160,100 @@ function Home() {
 }
 
 function Header() {
+  const [solid, setSolid] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setSolid(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-navy-gradient/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b transition-all duration-500 ${
+        solid
+          ? "h-16 border-white/10 bg-navy-gradient/95 backdrop-blur"
+          : "h-20 border-transparent bg-transparent"
+      }`}
+    >
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-6">
         <Link to="/" className="font-display text-lg font-extrabold tracking-tight text-white">
           Spin<span className="text-teal">Shine</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-white/70 md:flex">
-          <a href="#services" className="transition-colors hover:text-white">
-            Services
-          </a>
-          <a href="#process" className="transition-colors hover:text-white">
-            Process
-          </a>
-          <a href="#pricing" className="transition-colors hover:text-white">
-            Pricing
-          </a>
-          <a href="#coverage" className="transition-colors hover:text-white">
-            Coverage
-          </a>
-          <a href="#faq" className="transition-colors hover:text-white">
-            FAQ
-          </a>
+          {[
+            ["#services", "Services"],
+            ["#process", "Process"],
+            ["#pricing", "Pricing"],
+            ["#coverage", "Coverage"],
+            ["#faq", "FAQ"],
+          ].map(([href, label]) => (
+            <a key={href} href={href} className="link-underline transition-colors hover:text-white">
+              {label}
+            </a>
+          ))}
+          <Link to="/track" className="link-underline transition-colors hover:text-white">
+            Track order
+          </Link>
         </nav>
-        <a
-          href="#book"
+        <Link
+          to="/book"
           className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-navy transition-transform duration-300 hover:-translate-y-0.5"
         >
           Book Pickup
-        </a>
+        </Link>
       </div>
     </header>
   );
 }
 
 function Hero() {
+  const { ref, y } = useParallax(0.25);
   return (
-    <section className="relative flex min-h-[92vh] items-end overflow-hidden">
+    <section ref={ref} className="relative flex min-h-[92vh] items-end overflow-hidden">
       <img
         src={hero}
         alt="SpinShine technician steam-cleaning curtains in a modern Bangalore home"
         width={1920}
         height={1088}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-[118%] w-full object-cover will-change-transform"
+        style={{ transform: `translate3d(0, ${y}px, 0) scale(1.04)` }}
       />
       <div className="absolute inset-0 bg-[linear-gradient(to_top,oklch(0.16_0.04_265/0.95)_0%,oklch(0.16_0.04_265/0.55)_45%,oklch(0.16_0.04_265/0.35)_100%)]" />
       <div className="relative mx-auto w-full max-w-7xl px-6 pt-32 pb-20">
-        <div className="reveal max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-[0.18em] text-white/80 uppercase backdrop-blur">
+        <div className="max-w-3xl">
+          <span
+            className="reveal inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-[0.18em] text-white/80 uppercase backdrop-blur"
+            style={{ animationDelay: "60ms" }}
+          >
             Bangalore · Fabric Care Specialists
           </span>
           <h1 className="mt-7 text-4xl leading-[1.05] text-white sm:text-6xl lg:text-7xl">
-            Professional Fabric Care for Modern Homes.
+            {["Professional Fabric Care", "for Modern Homes."].map((line, i) => (
+              <span key={line} className="block overflow-hidden">
+                <span
+                  className="reveal block"
+                  style={{ animationDelay: `${180 + i * 140}ms` }}
+                >
+                  {line}
+                </span>
+              </span>
+            ))}
           </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">
+          <p
+            className="reveal mt-6 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg"
+            style={{ animationDelay: "520ms" }}
+          >
             Curtains, carpets, blankets, sofas and mattresses cleaned by professionals — with
             pickup, on-site service and doorstep delivery across Bangalore.
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <a
-              href="#book"
+          <div className="reveal mt-10 flex flex-wrap gap-3" style={{ animationDelay: "640ms" }}>
+            <Link
+              to="/book"
               className="rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-navy shadow-lift transition-transform duration-300 hover:-translate-y-0.5"
             >
               Book Pickup
-            </a>
+            </Link>
             <a
               href="#pricing"
               className="rounded-full border border-white/25 px-7 py-3.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-white/10"
@@ -228,9 +263,40 @@ function Hero() {
           </div>
         </div>
       </div>
+      <div className="absolute inset-x-0 bottom-6 flex justify-center">
+        <span className="h-10 w-6 rounded-full border border-white/25 p-1">
+          <span className="scroll-dot block h-1.5 w-1.5 rounded-full bg-white/70" />
+        </span>
+      </div>
     </section>
   );
 }
+
+function Stats() {
+  const stats = [
+    { n: 12000, s: "+", l: "Items cleaned" },
+    { n: 4200, s: "+", l: "Homes served" },
+    { n: 48, s: "h", l: "Average turnaround" },
+    { n: 30, s: " km", l: "Pickup radius" },
+  ];
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-16">
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s, i) => (
+          <Reveal key={s.l} delay={i * 90}>
+            <div>
+              <span className="font-display text-4xl font-extrabold text-foreground lg:text-5xl">
+                <CountUp to={s.n} suffix={s.s} />
+              </span>
+              <p className="mt-2 text-sm text-muted-foreground">{s.l}</p>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 
 function TrustStrip() {
   const items = [...trust, ...trust];
