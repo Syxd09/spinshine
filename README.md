@@ -1,4 +1,4 @@
-# Fabric Care Collective
+# SpinShine
 
 The feeling should be closer to Dyson, Apple, Tesla, or a luxury hotel website than a neighborhood laundry shop.
 
