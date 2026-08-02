@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Reveal } from "@/components/site/Reveal";
+import { ScrollProgress, useParallax, CountUp } from "@/components/site/motion";
+
 import { BeforeAfter } from "@/components/site/BeforeAfter";
 import hero from "@/assets/hero.jpg";
 import curtains from "@/assets/service-curtains.jpg";
