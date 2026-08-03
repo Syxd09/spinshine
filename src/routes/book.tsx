@@ -55,7 +55,7 @@ function BookPage() {
   const [notes, setNotes] = useState("");
   const [payment, setPayment] = useState("upi");
   const [slots, setSlots] = useState<Slot[] | null>(null);
-  const [blocked, setBlocked] = useState<string[]>([]);
+  const [blocked, setBlocked] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderRef, setOrderRef] = useState<string | null>(null);
@@ -66,10 +66,28 @@ function BookPage() {
   const days = useMemo(() => nextDays(14), []);
 
   useEffect(() => {
+    // Load from Supabase first, merge with local storage
     supabase
       .from("blocked_dates")
-      .select("blocked_on")
-      .then(({ data }) => setBlocked((data ?? []).map((d) => d.blocked_on)));
+      .select("blocked_on, reason")
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        for (const d of data ?? []) {
+          map[d.blocked_on] = d.reason || "Unavailable";
+        }
+        // Also merge in locally-blocked dates from admin panel
+        try {
+          const localRaw = localStorage.getItem("ss_local_blocked_dates");
+          if (localRaw) {
+            for (const d of JSON.parse(localRaw)) {
+              if (d.blocked_on && !map[d.blocked_on]) {
+                map[d.blocked_on] = d.reason || "Blocked";
+              }
+            }
+          }
+        } catch {}
+        setBlocked(map);
+      });
   }, []);
 
   useEffect(() => {
@@ -102,7 +120,7 @@ function BookPage() {
     const ref = makeOrderRef();
     const delivery = new Date(date);
     delivery.setDate(delivery.getDate() + (mode === "pickup" ? 3 : 0));
-    const { error: err } = await supabase.from("bookings").insert({
+    const bookingPayload = {
       order_ref: ref,
       service: SERVICES.find((s) => s.key === service)!.name,
       mode,
@@ -119,11 +137,28 @@ function BookPage() {
       estimated_price: price,
       payment_method: payment,
       status: "confirmed",
-    });
+    };
+
+    const { error: err } = await supabase.from("bookings").insert(bookingPayload);
     setSubmitting(false);
     if (err) {
       setError("We couldn't confirm that slot. Please pick another and try again.");
       return;
+    }
+
+    // Mirror to local storage
+    try {
+      const localB = localStorage.getItem("ss_local_bookings");
+      const list = localB ? JSON.parse(localB) : [];
+      list.unshift({
+        id: Math.random().toString(36).substring(2, 9),
+        ...bookingPayload,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      localStorage.setItem("ss_local_bookings", JSON.stringify(list));
+    } catch (e) {
+      console.error("Local storage mirror save failed", e);
     }
     setOrderRef(ref);
   }
@@ -255,14 +290,16 @@ function BookPage() {
                 <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
                   {days.map((d) => {
                     const iso = toISODate(d);
-                    const off = blocked.includes(iso);
+                    const reason = blocked[iso];
+                    const off = !!reason;
                     const on = date === iso;
                     return (
                       <button
                         key={iso}
                         disabled={off}
                         onClick={() => setDate(iso)}
-                        className={`min-w-[74px] shrink-0 rounded-2xl border px-3 py-4 text-center transition-all duration-300 ${
+                        title={off ? reason : undefined}
+                        className={`relative min-w-[74px] shrink-0 rounded-2xl border px-3 py-4 text-center transition-all duration-300 group/date ${
                           on
                             ? "border-transparent bg-navy-gradient text-white shadow-lift"
                             : off
@@ -279,6 +316,11 @@ function BookPage() {
                         <span className="block text-[11px] opacity-70">
                           {d.toLocaleDateString("en-IN", { month: "short" })}
                         </span>
+                        {off && (
+                          <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-navy px-3 py-1.5 text-[10px] font-bold text-white shadow-lg opacity-0 group-hover/date:opacity-100 transition-opacity duration-200 z-20">
+                            {reason}
+                          </span>
+                        )}
                       </button>
                     );
                   })}

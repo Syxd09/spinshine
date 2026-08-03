@@ -6,14 +6,21 @@ export type ServiceKey =
   | "blanket"
   | "upholstery";
 
-export const SERVICES: {
+export interface ServiceItem {
   key: ServiceKey;
   name: string;
   unit: string;
   rate: number;
   onsiteOnly?: boolean;
   desc: string;
-}[] = [
+}
+
+export interface LocalityItem {
+  name: string;
+  km: number;
+}
+
+const DEFAULT_SERVICES: ServiceItem[] = [
   { key: "curtains", name: "Curtain Cleaning", unit: "panel", rate: 199, desc: "Sheers, linen, blackout" },
   { key: "carpet", name: "Carpet Cleaning", unit: "carpet", rate: 899, desc: "Rugs & wall-to-wall" },
   { key: "sofa", name: "Sofa Cleaning", unit: "seat", rate: 499, desc: "Fabric & leather" },
@@ -22,7 +29,7 @@ export const SERVICES: {
   { key: "upholstery", name: "Upholstery Cleaning", unit: "unit", rate: 249, desc: "Chairs, recliners, office" },
 ];
 
-export const LOCALITIES: { name: string; km: number }[] = [
+const DEFAULT_LOCALITIES: LocalityItem[] = [
   { name: "Koramangala", km: 5 },
   { name: "Indiranagar", km: 6 },
   { name: "HSR Layout", km: 10 },
@@ -40,7 +47,20 @@ export const LOCALITIES: { name: string; km: number }[] = [
   { name: "Hoskote", km: 33 },
 ];
 
-export const RADIUS_KM = 30;
+function getLocalStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === "undefined") return defaultValue;
+  const stored = localStorage.getItem(key);
+  if (!stored) return defaultValue;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return defaultValue;
+  }
+}
+
+export const SERVICES: ServiceItem[] = getLocalStorage("ss_services", DEFAULT_SERVICES);
+export const LOCALITIES: LocalityItem[] = getLocalStorage("ss_localities", DEFAULT_LOCALITIES);
+export const RADIUS_KM: number = getLocalStorage("ss_radius_km", 30);
 
 export const PAYMENT_METHODS = [
   { key: "upi", label: "UPI", hint: "GPay · PhonePe · Paytm" },
@@ -78,8 +98,13 @@ export function estimatePrice(serviceKey: ServiceKey, qty: number, mode: string)
 }
 
 export function makeOrderRef() {
-  const n = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `SS-${new Date().getFullYear().toString().slice(2)}${n}`;
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(2);
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const date = String(now.getDate()).padStart(2, "0");
+  const time = String(now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()).padStart(5, "0");
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `SS-${year}${month}${date}-${time}${rand}`;
 }
 
 export function nextDays(count: number) {

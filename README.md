@@ -684,15 +684,6 @@ Final goal
 
 The target should not be to build a website similar to the reference you shared. The goal should be to create a website that feels like the premium market leader in Bangalore—one that gives customers confidence before they even make contact. Every page, interaction, and booking step should reinforce professionalism, convenience, and quality.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/379ed195-ed44-4ab3-ab99-1857bb56e093).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
