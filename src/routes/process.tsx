@@ -15,7 +15,8 @@ export const Route = createFileRoute("/process")({
       { property: "og:title", content: "Our Process — SpinShine" },
       {
         property: "og:description",
-        content: "Learn how we unhook, collect, clean, press, inspect, and rehang your fabrics in Bangalore.",
+        content:
+          "Learn how we unhook, collect, clean, press, inspect, and rehang your fabrics in Bangalore.",
       },
       { property: "og:url", content: "/process" },
     ],
@@ -78,7 +79,8 @@ function ProcessPage() {
                 Our 7-Step Cleaning Pipeline.
               </h1>
               <p className="mt-6 mx-auto max-w-2xl text-base sm:text-lg text-white/70">
-                From the moment we collect your fabrics to their pristine return, every step is governed by fabric-matched chemistry, high-end machines, and meticulous detail.
+                From the moment we collect your fabrics to their pristine return, every step is
+                governed by fabric-matched chemistry, high-end machines, and meticulous detail.
               </p>
             </Reveal>
           </div>
@@ -94,12 +96,10 @@ function ProcessPage() {
                   <span className="absolute -left-[50px] top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-navy-gradient text-white font-display font-bold text-sm shadow-lift border-4 border-background">
                     {s.num}
                   </span>
-                  
+
                   <div>
                     <h2 className="text-xl font-bold text-foreground">{s.title}</h2>
-                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                      {s.desc}
-                    </p>
+                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               </Reveal>
@@ -115,9 +115,12 @@ function ProcessPage() {
                 <span className="text-xs font-semibold tracking-[0.2em] text-royal uppercase">
                   Our Standards
                 </span>
-                <h2 className="mt-2 text-3xl font-extrabold text-foreground">Premium facility. Eco-friendly solutions.</h2>
+                <h2 className="mt-2 text-3xl font-extrabold text-foreground">
+                  Premium facility. Eco-friendly solutions.
+                </h2>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Our service standards protect both your expensive home furnishing investments and the environment.
+                  Our service standards protect both your expensive home furnishing investments and
+                  the environment.
                 </p>
               </div>
             </Reveal>
@@ -128,7 +131,9 @@ function ProcessPage() {
                   <span className="text-2xl">🌱</span>
                   <h3 className="font-bold text-foreground">Zero Harmful Solvents</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    We completely avoid PERC (perchloroethylene) dry cleaning. Instead, we use biodegradable, dermatologically tested, organic siloxane solvents that are safe for infants, pets, and delicate skin.
+                    We completely avoid PERC (perchloroethylene) dry cleaning. Instead, we use
+                    biodegradable, dermatologically tested, organic siloxane solvents that are safe
+                    for infants, pets, and delicate skin.
                   </p>
                 </div>
               </Reveal>
@@ -138,7 +143,9 @@ function ProcessPage() {
                   <span className="text-2xl">🌀</span>
                   <h3 className="font-bold text-foreground">Damp & Shrinkage Prevention</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Fabric fibers warp under heat. Our dehumidified chambers dry garments under ambient pressure and mild warmth, ensuring wool, cashmere, and high-pile carpets maintain original dimensions.
+                    Fabric fibers warp under heat. Our dehumidified chambers dry garments under
+                    ambient pressure and mild warmth, ensuring wool, cashmere, and high-pile carpets
+                    maintain original dimensions.
                   </p>
                 </div>
               </Reveal>
@@ -148,7 +155,9 @@ function ProcessPage() {
                   <span className="text-2xl">🔍</span>
                   <h3 className="font-bold text-foreground">Real-Time Tracking</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Every step in the cleaning pipeline is logged via barcodes. You can enter your Order ID on our tracking system to see timestamps of exactly which stage your fabric is undergoing.
+                    Every step in the cleaning pipeline is logged via barcodes. You can enter your
+                    Order ID on our tracking system to see timestamps of exactly which stage your
+                    fabric is undergoing.
                   </p>
                 </div>
               </Reveal>
@@ -160,9 +169,12 @@ function ProcessPage() {
         <section className="py-20 px-6 text-center">
           <div className="mx-auto max-w-3xl">
             <Reveal>
-              <h2 className="text-3xl font-extrabold text-foreground">Experience the SpinShine standard</h2>
+              <h2 className="text-3xl font-extrabold text-foreground">
+                Experience the SpinShine standard
+              </h2>
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-                Clean curtains, stain-free carpets, and sanitized mattresses are just a click away. Book now for Bangalore's best home care service.
+                Clean curtains, stain-free carpets, and sanitized mattresses are just a click away.
+                Book now for Bangalore's best home care service.
               </p>
               <div className="mt-8 flex justify-center gap-4">
                 <Link

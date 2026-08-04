@@ -19,7 +19,8 @@ export const Route = createFileRoute("/track")({
       { property: "og:title", content: "Track Your Order — SpinShine" },
       {
         property: "og:description",
-        content: "Enter your order ID and phone number to see live progress on your cleaning order.",
+        content:
+          "Enter your order ID and phone number to see live progress on your cleaning order.",
       },
       { property: "og:url", content: "/track" },
     ],
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/track")({
 
 type Booking = {
   order_ref: string;
+  phone: string;
   service: string;
   mode: string;
   pickup_date: string;
@@ -41,14 +43,22 @@ type Booking = {
 };
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
-  confirmed: "Your booking request has been registered in our system. A technician has been allocated to collect your fabrics.",
-  collected: "Our operations team has collected your items. They are currently being cataloged and inspected at our central care facility.",
-  cleaning: "Your fabrics are in the treatment chambers. We are applying fabric-specific eco-friendly extraction shampoos and sanitization cycles.",
-  drying: "Your fabrics are in our climate-controlled dehumidification rooms to dry gently without compromising fiber integrity.",
-  quality_check: "Our master inspection technicians are performing stain reviews, fiber strength checks, and UV-C sanitization passes.",
-  out_for_delivery: "Your clean fabrics have been wrapped in breathable protective covers and are in transit back to your address.",
-  delivered: "Fabric care complete. Your items have been successfully returned, rehung, or laid out. Thank you for choosing SpinShine!",
-  cancelled: "This booking was cancelled. If this is a mistake, please contact customer care on WhatsApp.",
+  confirmed:
+    "Your booking request has been registered in our system. A technician has been allocated to collect your fabrics.",
+  collected:
+    "Our operations team has collected your items. They are currently being cataloged and inspected at our central care facility.",
+  cleaning:
+    "Your fabrics are in the treatment chambers. We are applying fabric-specific eco-friendly extraction shampoos and sanitization cycles.",
+  drying:
+    "Your fabrics are in our climate-controlled dehumidification rooms to dry gently without compromising fiber integrity.",
+  quality_check:
+    "Our master inspection technicians are performing stain reviews, fiber strength checks, and UV-C sanitization passes.",
+  out_for_delivery:
+    "Your clean fabrics have been wrapped in breathable protective covers and are in transit back to your address.",
+  delivered:
+    "Fabric care complete. Your items have been successfully returned, rehung, or laid out. Thank you for choosing SpinShine!",
+  cancelled:
+    "This booking was cancelled. If this is a mistake, please contact customer care on WhatsApp.",
 };
 
 function TrackPage() {
@@ -62,7 +72,7 @@ function TrackPage() {
     setLoading(true);
     setError(null);
     setResult(null);
-    
+
     // Normalize input phone to numbers only
     const cleanInputPhone = phone.replace(/\D/g, "");
     const cleanInputRef = ref.trim().toUpperCase();
@@ -73,7 +83,7 @@ function TrackPage() {
         _order_ref: cleanInputRef,
         _phone: phone.trim(),
       });
-      
+
       const row = (data as Booking[] | null)?.[0];
       if (row) {
         setResult(row);
@@ -88,7 +98,7 @@ function TrackPage() {
     try {
       const localB = localStorage.getItem("ss_local_bookings");
       if (localB) {
-        const list = JSON.parse(localB) as any[];
+        const list = JSON.parse(localB) as Booking[];
         const match = list.find((b) => {
           const matchRef = b.order_ref?.trim().toUpperCase() === cleanInputRef;
           const cleanBPhone = b.phone?.replace(/\D/g, "");
@@ -99,6 +109,7 @@ function TrackPage() {
         if (match) {
           setResult({
             order_ref: match.order_ref,
+            phone: match.phone,
             service: match.service,
             mode: match.mode,
             pickup_date: match.pickup_date,
@@ -120,22 +131,27 @@ function TrackPage() {
     setError("No order matches that ID and phone number.");
   }
 
-  const activeIndex = result ? TRACK_STAGES.indexOf(result.status as (typeof TRACK_STAGES)[number]) : -1;
+  const activeIndex = result
+    ? TRACK_STAGES.indexOf(result.status as (typeof TRACK_STAGES)[number])
+    : -1;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="mx-auto max-w-3xl px-6 pt-32 pb-24 bg-grid-pattern relative">
         <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-royal/5 rounded-full blur-3xl pointer-events-none" />
-        
+
         <Reveal>
           <span className="text-xs font-bold tracking-[0.2em] text-royal bg-royal/5 px-3.5 py-1 rounded-full uppercase">
             Order Status
           </span>
-          <h1 className="text-4xl sm:text-5.5xl font-black mt-4 text-foreground leading-[1.1]">Track your order</h1>
+          <h1 className="text-4xl sm:text-5.5xl font-black mt-4 text-foreground leading-[1.1]">
+            Track your order
+          </h1>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground max-w-md">
-            Enter the order reference ID from your confirmation receipt and the registered phone number to follow treatment progress.
+            Enter the order reference ID from your confirmation receipt and the registered phone
+            number to follow treatment progress.
           </p>
         </Reveal>
 
@@ -182,13 +198,15 @@ function TrackPage() {
                     <span className="text-[10px] font-extrabold bg-secondary text-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                       Reference Number
                     </span>
-                    <h2 className="font-display text-2xl font-black text-foreground mt-2">{result.order_ref}</h2>
+                    <h2 className="font-display text-2xl font-black text-foreground mt-2">
+                      {result.order_ref}
+                    </h2>
                   </div>
                   <span className="rounded-full bg-teal/10 px-4.5 py-2 text-xs font-bold text-teal uppercase tracking-wider border border-teal/20">
                     {STAGE_LABELS[result.status] ?? result.status}
                   </span>
                 </div>
-                
+
                 <div className="grid gap-4 sm:grid-cols-2 text-xs">
                   <div>
                     <span className="text-muted-foreground font-semibold">Service Profile:</span>
@@ -197,7 +215,9 @@ function TrackPage() {
                   <div>
                     <span className="text-muted-foreground font-semibold">Care Method:</span>
                     <p className="font-bold text-foreground text-sm mt-0.5">
-                      {result.mode === "pickup" ? "Premium Pickup & Return" : "Specialist On-site Extraction"}
+                      {result.mode === "pickup"
+                        ? "Premium Pickup & Return"
+                        : "Specialist On-site Extraction"}
                     </p>
                   </div>
                 </div>
@@ -219,8 +239,8 @@ function TrackPage() {
                               current
                                 ? "bg-teal ring-4 ring-teal/20 scale-125"
                                 : done
-                                ? "bg-teal/70"
-                                : "bg-border"
+                                  ? "bg-teal/70"
+                                  : "bg-border"
                             }`}
                           />
                           <div className="space-y-1">
@@ -262,7 +282,9 @@ function TrackPage() {
                   </div>
                   {result.delivery_date && (
                     <div className="p-4 rounded-xl border border-border bg-secondary/10">
-                      <span className="text-muted-foreground font-semibold">Expected Return / Finish</span>
+                      <span className="text-muted-foreground font-semibold">
+                        Expected Return / Finish
+                      </span>
                       <p className="font-bold text-foreground text-sm mt-1">
                         {new Date(result.delivery_date).toLocaleDateString("en-IN", {
                           day: "numeric",

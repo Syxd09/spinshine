@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { estimatePrice, makeOrderRef, SERVICES, LOCALITIES, RADIUS_KM, PAYMENT_METHODS, TRACK_STAGES, STAGE_LABELS, nextDays, toISODate } from "./booking";
-import { DEFAULT_TEXTS, DEFAULT_IMAGES, DEFAULT_FAQS } from "./cms-config";
+import {
+  estimatePrice,
+  makeOrderRef,
+  SERVICES,
+  LOCALITIES,
+  RADIUS_KM,
+  PAYMENT_METHODS,
+  TRACK_STAGES,
+  STAGE_LABELS,
+  nextDays,
+  toISODate,
+} from "./booking";
+import { DEFAULT_TEXTS, DEFAULT_IMAGES, DEFAULT_FAQS } from "./cms-content";
 import type { ServiceItem, ServiceKey } from "./booking";
-import type { CmsTexts, CmsImages, FaqCategory } from "./cms-config";
+import type { CmsTexts, CmsImages, FaqCategory } from "./cms-content";
 
 /* ═══════════════════════════════════════════════════
    §1. PRICE ESTIMATION ENGINE
@@ -25,15 +36,21 @@ describe("Price Estimation Engine", () => {
   });
 
   it("should return 0 for undefined/invalid service keys", () => {
-    // @ts-expect-error testing invalid input
     const price = estimatePrice("invalid-service-key", 2, "pickup");
     expect(price).toBe(0);
   });
 
   it("should calculate correctly for every registered service", () => {
-    const serviceKeys: ServiceKey[] = ["curtains", "carpet", "sofa", "mattress", "blanket", "upholstery"];
+    const serviceKeys: ServiceKey[] = [
+      "curtains",
+      "carpet",
+      "sofa",
+      "mattress",
+      "blanket",
+      "upholstery",
+    ];
     for (const key of serviceKeys) {
-      const svc = SERVICES.find(s => s.key === key);
+      const svc = SERVICES.find((s) => s.key === key);
       expect(svc).toBeDefined();
       const price = estimatePrice(key, 1, "pickup");
       expect(price).toBe(svc!.rate);
@@ -48,7 +65,14 @@ describe("Price Estimation Engine", () => {
   });
 
   it("should add exactly ₹199 surcharge for onsite mode across all services", () => {
-    const serviceKeys: ServiceKey[] = ["curtains", "carpet", "sofa", "mattress", "blanket", "upholstery"];
+    const serviceKeys: ServiceKey[] = [
+      "curtains",
+      "carpet",
+      "sofa",
+      "mattress",
+      "blanket",
+      "upholstery",
+    ];
     for (const key of serviceKeys) {
       const pickup = estimatePrice(key, 1, "pickup");
       const onsite = estimatePrice(key, 1, "onsite");
@@ -115,15 +139,22 @@ describe("Service Catalog Integrity", () => {
   });
 
   it("should contain all required service keys", () => {
-    const expectedKeys: ServiceKey[] = ["curtains", "carpet", "sofa", "mattress", "blanket", "upholstery"];
-    const actualKeys = SERVICES.map(s => s.key);
+    const expectedKeys: ServiceKey[] = [
+      "curtains",
+      "carpet",
+      "sofa",
+      "mattress",
+      "blanket",
+      "upholstery",
+    ];
+    const actualKeys = SERVICES.map((s) => s.key);
     for (const key of expectedKeys) {
       expect(actualKeys).toContain(key);
     }
   });
 
   it("should have no duplicate service keys", () => {
-    const keys = SERVICES.map(s => s.key);
+    const keys = SERVICES.map((s) => s.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
 
@@ -152,7 +183,7 @@ describe("Locality & Coverage Data", () => {
   });
 
   it("should have no duplicate locality names", () => {
-    const names = LOCALITIES.map(l => l.name);
+    const names = LOCALITIES.map((l) => l.name);
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -177,7 +208,7 @@ describe("Payment Methods", () => {
   });
 
   it("should include UPI, Card, and Cash on delivery", () => {
-    const keys = PAYMENT_METHODS.map(p => p.key);
+    const keys = PAYMENT_METHODS.map((p) => p.key);
     expect(keys).toContain("upi");
     expect(keys).toContain("card");
     expect(keys).toContain("cash");
@@ -206,7 +237,15 @@ describe("Tracking Stage Pipeline", () => {
   });
 
   it("should follow correct lifecycle sequence", () => {
-    const expected = ["confirmed", "collected", "cleaning", "drying", "quality_check", "out_for_delivery", "delivered"];
+    const expected = [
+      "confirmed",
+      "collected",
+      "cleaning",
+      "drying",
+      "quality_check",
+      "out_for_delivery",
+      "delivered",
+    ];
     expect([...TRACK_STAGES]).toEqual(expected);
   });
 
@@ -296,7 +335,7 @@ describe("CMS Default Configuration", () => {
     });
 
     it("should have sequential step numbers 01-04", () => {
-      expect(DEFAULT_TEXTS.steps.map(s => s.n)).toEqual(["01", "02", "03", "04"]);
+      expect(DEFAULT_TEXTS.steps.map((s) => s.n)).toEqual(["01", "02", "03", "04"]);
     });
 
     it("should have non-empty title and content for each step", () => {
@@ -307,7 +346,7 @@ describe("CMS Default Configuration", () => {
     });
 
     it("should include navigation links for all main pages", () => {
-      const routes = DEFAULT_TEXTS.links.map(l => l.to);
+      const routes = DEFAULT_TEXTS.links.map((l) => l.to);
       expect(routes).toContain("/process");
       expect(routes).toContain("/pricing");
       expect(routes).toContain("/coverage");
@@ -319,7 +358,17 @@ describe("CMS Default Configuration", () => {
 
   describe("Default Images", () => {
     it("should define all 9 required image slots", () => {
-      const keys: (keyof CmsImages)[] = ["hero", "curtains", "carpet", "sofa", "mattress", "blanket", "upholstery", "baBefore", "baAfter"];
+      const keys: (keyof CmsImages)[] = [
+        "hero",
+        "curtains",
+        "carpet",
+        "sofa",
+        "mattress",
+        "blanket",
+        "upholstery",
+        "baBefore",
+        "baAfter",
+      ];
       for (const key of keys) {
         expect(typeof DEFAULT_IMAGES[key]).toBe("string");
         expect(DEFAULT_IMAGES[key].length).toBeGreaterThan(0);
@@ -333,7 +382,7 @@ describe("CMS Default Configuration", () => {
     });
 
     it("should have unique category IDs", () => {
-      const ids = DEFAULT_FAQS.map(c => c.id);
+      const ids = DEFAULT_FAQS.map((c) => c.id);
       expect(new Set(ids).size).toBe(ids.length);
     });
 
@@ -359,7 +408,7 @@ describe("CMS Default Configuration", () => {
     });
 
     it("should contain expected category IDs", () => {
-      const ids = DEFAULT_FAQS.map(c => c.id);
+      const ids = DEFAULT_FAQS.map((c) => c.id);
       expect(ids).toContain("booking");
       expect(ids).toContain("fabric");
       expect(ids).toContain("onsite");

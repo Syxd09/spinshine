@@ -24,21 +24,29 @@ export function Footer() {
     <footer className="relative bg-navy text-white overflow-hidden">
       {/* Top Border Accent Gradient */}
       <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-teal via-royal to-gold opacity-50" />
-      
+
       {/* Background Decorative Glow */}
       <div className="absolute -bottom-48 -right-48 w-96 h-96 bg-royal/10 rounded-full blur-3xl" />
-      
+
       <div className="relative mx-auto max-w-6xl px-6 py-20">
         <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr]">
           <div className="space-y-6">
-            <Link to="/" className="inline-flex items-center gap-2.5 font-display text-2xl font-black text-white group">
-              <Logo size={34} variant="teal" className="transition-transform duration-500 group-hover:rotate-12" />
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2.5 font-display text-2xl font-black text-white group"
+            >
+              <Logo
+                size={34}
+                variant="teal"
+                className="transition-transform duration-500 group-hover:rotate-12"
+              />
               <span>
                 Spin<span className="text-teal">Shine</span>
               </span>
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-white/50">
-              Professional fabric care, delivered to your doorstep. Restoring hygiene, comfort, and luxury to Bangalore's finest homes and offices.
+              Professional fabric care, delivered to your doorstep. Restoring hygiene, comfort, and
+              luxury to Bangalore's finest homes and offices.
             </p>
             <div className="flex flex-wrap gap-4 pt-2">
               <a

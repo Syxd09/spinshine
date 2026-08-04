@@ -5,8 +5,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { BeforeAfter } from "@/components/site/BeforeAfter";
 import { SpotlightCard } from "@/components/site/SpotlightCard";
-import { SERVICES, LOCALITIES, RADIUS_KM } from "@/lib/booking";
-import { cmsTexts, cmsImages } from "@/lib/cms-config";
+import { useCatalog } from "@/lib/catalog-state";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,11 +52,12 @@ function Home() {
 
 function Hero() {
   const { ref, y } = useParallax(0.2);
+  const { texts, images } = useCatalog();
   return (
     <section ref={ref} className="relative flex min-h-[96vh] items-center overflow-hidden bg-navy">
       {/* Immersive Parallax Image */}
       <img
-        src={cmsImages.hero}
+        src={images.hero}
         alt="SpinShine fabric care banner"
         width={1920}
         height={1088}
@@ -67,7 +67,7 @@ function Hero() {
       {/* Sleek Overlay Gradient & Blueprint Grid */}
       <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/85 to-navy/55" />
       <div className="absolute inset-0 bg-grid-pattern-dark opacity-40" />
-      
+
       {/* Background Slow-Spin Glow Blob */}
       <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-royal/10 rounded-full blur-3xl animate-slow-spin pointer-events-none" />
 
@@ -79,18 +79,21 @@ function Hero() {
                 Bangalore · Premium Fabric Care
               </span>
             </Reveal>
-            
+
             <h1 className="text-5xl leading-[1.05] text-white sm:text-6.5xl lg:text-7.5xl font-black tracking-tight">
-              <span className="block text-white/90">{cmsTexts.heroHeading}</span>
+              <span className="block text-white/90">{texts.heroHeading}</span>
               <span className="block mt-2">
-                {cmsTexts.heroSubheading} <span className="font-serif italic font-semibold text-teal-400">{cmsTexts.heroItalic}</span>
+                {texts.heroSubheading}{" "}
+                <span className="font-serif italic font-semibold text-teal-400">
+                  {texts.heroItalic}
+                </span>
               </span>
             </h1>
-            
+
             <p className="reveal max-w-xl text-base leading-relaxed text-white/60 sm:text-lg">
-              {cmsTexts.heroDesc}
+              {texts.heroDesc}
             </p>
-            
+
             <div className="reveal flex flex-wrap gap-5 pt-4">
               <Link
                 to="/book"
@@ -120,15 +123,20 @@ function Hero() {
             >
               <div className="flex items-center gap-3">
                 <span className="h-2 w-2 rounded-full bg-teal animate-pulse" />
-                <span className="text-[10px] font-bold tracking-[0.25em] text-white/50 uppercase">Live Availability Check</span>
+                <span className="text-[10px] font-bold tracking-[0.25em] text-white/50 uppercase">
+                  Live Availability Check
+                </span>
               </div>
-              <h3 className="text-xl font-bold text-white leading-snug">Book your slot before they fill up.</h3>
+              <h3 className="text-xl font-bold text-white leading-snug">
+                Book your slot before they fill up.
+              </h3>
               <p className="text-xs text-white/50 leading-relaxed">
-                Our mobile cleaning teams are operating today across all zones. Schedule same-day or next-day fabric extraction easily.
+                Our mobile cleaning teams are operating today across all zones. Schedule same-day or
+                next-day fabric extraction easily.
               </p>
               <div className="border-t border-white/10 pt-4 flex justify-between items-center text-xs text-white/60">
-                <span>{cmsTexts.availabilityLabel}</span>
-                <span className="font-bold text-teal">{cmsTexts.availabilityValue}</span>
+                <span>{texts.availabilityLabel}</span>
+                <span className="font-bold text-teal">{texts.availabilityValue}</span>
               </div>
             </SpotlightCard>
           </div>
@@ -139,7 +147,8 @@ function Hero() {
 }
 
 function TrustStrip() {
-  const items = [...cmsTexts.trustList, ...cmsTexts.trustList];
+  const { texts } = useCatalog();
+  const items = [...texts.trustList, ...texts.trustList];
   return (
     <section className="border-y border-border bg-card py-5 overflow-hidden">
       <div className="flex [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
@@ -160,11 +169,12 @@ function TrustStrip() {
 }
 
 function Stats() {
+  const { settings } = useCatalog();
   const stats = [
     { n: 12000, s: "+", l: "Fabrics Restored" },
     { n: 4200, s: "+", l: "Fine Homes Served" },
     { n: 48, s: "h", l: "Average Turnaround" },
-    { n: RADIUS_KM, s: " km", l: "Service Radius" },
+    { n: settings.radiusKm, s: " km", l: "Service Radius" },
   ];
   return (
     <section className="mx-auto max-w-6xl px-6 py-24 border-b border-border bg-grid-pattern">
@@ -175,7 +185,9 @@ function Stats() {
               <span className="font-display text-4xl font-extrabold text-foreground lg:text-5xl">
                 <CountUp to={s.n} suffix={s.s} />
               </span>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{s.l}</p>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {s.l}
+              </p>
             </div>
           </Reveal>
         ))}
@@ -204,19 +216,21 @@ function SectionHead({
         {title}
       </h2>
       {copy && (
-        <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground">
-          {copy}
-        </p>
+        <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground">{copy}</p>
       )}
     </div>
   );
 }
 
 function ServicesIntro() {
+  const { services, images } = useCatalog();
   // Show first 3 active services
-  const displayedServices = SERVICES.slice(0, 3);
+  const displayedServices = services.slice(0, 3);
   return (
-    <section id="services" className="mx-auto max-w-6xl px-6 py-28 lg:py-36 bg-grid-pattern relative">
+    <section
+      id="services"
+      className="mx-auto max-w-6xl px-6 py-28 lg:py-36 bg-grid-pattern relative"
+    >
       <div className="absolute top-10 right-10 w-96 h-96 bg-royal/5 rounded-full blur-3xl animate-float pointer-events-none" />
       <Reveal>
         <SectionHead
@@ -225,10 +239,10 @@ function ServicesIntro() {
           copy="Each material is sorted, chemically tested, and cleaned according to its unique characteristics. We treat nothing as generic laundry."
         />
       </Reveal>
-      
+
       <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {displayedServices.map((s, i) => {
-          const serviceImg = cmsImages[s.key as keyof typeof cmsImages] || cmsImages.curtains;
+          const serviceImg = images[s.key as keyof typeof images] || images.curtains;
           return (
             <Reveal key={s.key} delay={i * 80}>
               <SpotlightCard className="flex h-full flex-col overflow-hidden group">
@@ -244,12 +258,19 @@ function ServicesIntro() {
                   />
                 </div>
                 <div className="flex flex-1 flex-col p-8 relative">
-                  <h3 className="text-xl font-bold text-foreground transition-colors group-hover/card:text-royal">{s.name}</h3>
+                  <h3 className="text-xl font-bold text-foreground transition-colors group-hover/card:text-royal">
+                    {s.name}
+                  </h3>
                   <p className="mt-3 flex-1 text-xs leading-relaxed text-muted-foreground">
                     {s.desc}
                   </p>
                   <div className="mt-6 flex items-center justify-between border-t border-border pt-5">
-                    <span className="text-xs font-bold text-foreground uppercase tracking-wider">from <span className="text-royal font-display text-base font-black">₹{s.rate} / {s.unit}</span></span>
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      from{" "}
+                      <span className="text-royal font-display text-base font-black">
+                        ₹{s.rate} / {s.unit}
+                      </span>
+                    </span>
                     <Link
                       to="/services"
                       className="text-xs font-bold text-royal tracking-wider uppercase transition-transform duration-300 group-hover/card:translate-x-1"
@@ -268,12 +289,13 @@ function ServicesIntro() {
 }
 
 function ProcessTimeline() {
+  const { texts } = useCatalog();
   return (
     <section className="bg-navy text-white py-28 lg:py-36 relative overflow-hidden">
       {/* Decorative Blur Background Blob */}
       <div className="absolute top-1/4 -left-48 w-[400px] h-[400px] bg-royal/15 rounded-full blur-3xl animate-float" />
       <div className="absolute inset-0 bg-grid-pattern-dark opacity-30" />
-      
+
       <div className="relative mx-auto max-w-6xl px-6">
         <Reveal>
           <div className="max-w-2xl">
@@ -281,20 +303,29 @@ function ProcessTimeline() {
               How it works
             </span>
             <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
-              Four steps. Absolute <span className="font-serif italic font-semibold text-teal-400">peace of mind.</span>
+              Four steps. Absolute{" "}
+              <span className="font-serif italic font-semibold text-teal-400">peace of mind.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-white/50">
-              From reservation to final rehanging, our operational process is transparent, barcoded, and time-stamped for complete quality control.
+              From reservation to final rehanging, our operational process is transparent, barcoded,
+              and time-stamped for complete quality control.
             </p>
           </div>
         </Reveal>
 
         <div className="mt-16 grid gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-lift">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 bg-navy">
-            {cmsTexts.steps.map((step, i) => (
-              <div key={i} className="h-full p-8 hover:bg-white/5 transition-colors duration-300 relative group/step border-r border-b border-white/10 last:border-0 md:[&:nth-child(even)]:border-r-0 lg:[&:nth-child(even)]:border-r">
-                <span className="font-display text-4xl font-extrabold text-teal/20 transition-colors duration-500 group-hover/step:text-teal/40">{step.n}</span>
-                <h3 className="mt-6 text-lg font-bold text-white group-hover/step:text-teal transition-colors">{step.t}</h3>
+            {texts.steps.map((step, i) => (
+              <div
+                key={i}
+                className="h-full p-8 hover:bg-white/5 transition-colors duration-300 relative group/step border-r border-b border-white/10 last:border-0 md:[&:nth-child(even)]:border-r-0 lg:[&:nth-child(even)]:border-r"
+              >
+                <span className="font-display text-4xl font-extrabold text-teal/20 transition-colors duration-500 group-hover/step:text-teal/40">
+                  {step.n}
+                </span>
+                <h3 className="mt-6 text-lg font-bold text-white group-hover/step:text-teal transition-colors">
+                  {step.t}
+                </h3>
                 <p className="mt-3 text-xs leading-relaxed text-white/50">{step.c}</p>
               </div>
             ))}
@@ -306,6 +337,7 @@ function ProcessTimeline() {
 }
 
 function OnSiteShowcase() {
+  const { images } = useCatalog();
   return (
     <section className="mx-auto max-w-6xl px-6 py-28 lg:py-36 bg-grid-pattern relative">
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-teal/5 rounded-full blur-3xl animate-float pointer-events-none" />
@@ -317,16 +349,18 @@ function OnSiteShowcase() {
               title="Professional cleaning. Done inside your home."
               copy="No transport required. Our technicians arrive with specialized mobile extraction gear to restore your heavy furniture on-site, leaving it sanitized and dry in hours."
             />
-            
+
             <ul className="grid gap-4 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:grid-cols-2">
-              {["Sofas & Recliners", "Mattresses", "Wall-to-wall Carpets", "Office Seating"].map((x, idx) => (
-                <li key={idx} className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 rounded-full bg-teal" />
-                  <span>{x}</span>
-                </li>
-              ))}
+              {["Sofas & Recliners", "Mattresses", "Wall-to-wall Carpets", "Office Seating"].map(
+                (x, idx) => (
+                  <li key={idx} className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-teal" />
+                    <span>{x}</span>
+                  </li>
+                ),
+              )}
             </ul>
-            
+
             <div className="pt-4">
               <span className="inline-block text-[10px] font-bold tracking-wider text-navy px-4.5 py-2 bg-secondary rounded-full uppercase">
                 * Entire Bangalore covered — no radius limit for on-site services.
@@ -334,12 +368,12 @@ function OnSiteShowcase() {
             </div>
           </div>
         </Reveal>
-        
+
         <Reveal delay={120}>
           <div className="surface overflow-hidden shadow-soft rounded-3xl group relative">
             <div className="absolute inset-0 bg-navy/10 z-10 pointer-events-none group-hover:opacity-0 transition-opacity" />
             <img
-              src={cmsImages.sofa}
+              src={images.sofa}
               alt="Technician performing sofa cleaning on-site"
               loading="lazy"
               width={900}
@@ -354,6 +388,7 @@ function OnSiteShowcase() {
 }
 
 function BeforeAfterSection() {
+  const { images } = useCatalog();
   return (
     <section className="border-y border-border bg-card py-28 lg:py-36 bg-grid-pattern">
       <div className="mx-auto max-w-4xl px-6">
@@ -365,10 +400,10 @@ function BeforeAfterSection() {
             copy="Real cleaning jobs, untreated. Deep extraction pulls out dirt and grime standard vacuum cleaners cannot reach."
           />
         </Reveal>
-        
+
         <Reveal delay={120}>
           <div className="mt-16 rounded-3xl overflow-hidden shadow-lift border border-border">
-            <BeforeAfter before={cmsImages.baBefore} after={cmsImages.baAfter} />
+            <BeforeAfter before={images.baBefore} after={images.baAfter} />
           </div>
         </Reveal>
       </div>
@@ -377,8 +412,9 @@ function BeforeAfterSection() {
 }
 
 function PricingSection() {
+  const { services } = useCatalog();
   // Show first 3 active services
-  const displayedServices = SERVICES.slice(0, 3);
+  const displayedServices = services.slice(0, 3);
   return (
     <section className="mx-auto max-w-6xl px-6 py-28 lg:py-36 border-b border-border bg-grid-pattern relative">
       <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] bg-royal/5 rounded-full blur-3xl animate-float pointer-events-none" />
@@ -394,17 +430,20 @@ function PricingSection() {
       <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {displayedServices.map((s, i) => (
           <Reveal key={s.key} delay={(i + 1) * 60}>
-            <SpotlightCard className="p-px" innerClassName="p-8 flex flex-col h-full justify-between space-y-6">
+            <SpotlightCard
+              className="p-px"
+              innerClassName="p-8 flex flex-col h-full justify-between space-y-6"
+            >
               <div>
                 <h3 className="text-xl font-bold text-foreground">{s.name}</h3>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-xs font-bold text-muted-foreground">from</span>
-                  <span className="font-display text-4xl font-extrabold text-foreground">₹{s.rate}</span>
+                  <span className="font-display text-4xl font-extrabold text-foreground">
+                    ₹{s.rate}
+                  </span>
                   <span className="text-xs text-muted-foreground">/ {s.unit} onwards</span>
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  {s.desc}
-                </p>
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
               </div>
               <Link
                 to="/pricing"
@@ -421,7 +460,8 @@ function PricingSection() {
 }
 
 function CoverageSection() {
-  const displayedAreas = LOCALITIES.slice(0, 10).map((l) => l.name);
+  const { localities, settings } = useCatalog();
+  const displayedAreas = localities.slice(0, 10).map((l) => l.name);
   return (
     <section className="bg-card py-28 lg:py-36 bg-grid-pattern relative">
       <div className="absolute top-1/4 right-10 w-96 h-96 bg-royal/5 rounded-full blur-3xl animate-float pointer-events-none" />
@@ -431,9 +471,9 @@ function CoverageSection() {
             <SectionHead
               eyebrow="Service area"
               title="Full pickup service within 30 km."
-              copy={`We pick up and return anywhere within ${RADIUS_KM} km of our central Bangalore care hub. On-site cleaning services are available across the entire city metropolitan boundary.`}
+              copy={`We pick up and return anywhere within ${settings.radiusKm} km of our central Bangalore care hub. On-site cleaning services are available across the entire city metropolitan boundary.`}
             />
-            
+
             <div className="flex flex-wrap gap-2.5 pt-4">
               {displayedAreas.map((a, idx) => (
                 <span
@@ -444,7 +484,7 @@ function CoverageSection() {
                 </span>
               ))}
             </div>
-            
+
             <div className="pt-4">
               <Link
                 to="/coverage"
@@ -456,16 +496,16 @@ function CoverageSection() {
             </div>
           </div>
         </Reveal>
-        
+
         <Reveal delay={120}>
           <div className="relative aspect-square overflow-hidden rounded-3xl bg-navy-gradient shadow-lift border border-border">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,oklch(0.546_0.215_262.881/0.3),transparent_62%)]" />
             <div className="absolute top-1/2 left-1/2 h-[68%] w-[68%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-teal/30 bg-teal/5 animate-pulse" />
             <div className="absolute top-1/2 left-1/2 h-[42%] w-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-teal/50 bg-teal/10" />
             <div className="absolute top-1/2 left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal shadow-[0_0_0_10px_oklch(0.704_0.14_182.503/0.3)]" />
-            
+
             <span className="absolute bottom-6 left-6 text-xs font-bold tracking-[0.2em] text-white/50 uppercase">
-              {RADIUS_KM} km pickup radius · Bengaluru
+              {settings.radiusKm} km pickup radius · Bengaluru
             </span>
           </div>
         </Reveal>

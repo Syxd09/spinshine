@@ -11,6 +11,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
+import { loadCatalog, type CatalogConfig } from "../lib/catalog-actions";
+import { CatalogProvider } from "../lib/catalog-state";
+import { FabricCareAssistant } from "@/components/site/FabricCareAssistant";
 
 function NotFoundComponent() {
   return (
@@ -73,6 +76,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  loader: async (): Promise<{ catalog: CatalogConfig }> => {
+    return { catalog: await loadCatalog() };
+  },
+
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -136,11 +143,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { catalog } = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <CatalogProvider config={catalog}>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <FabricCareAssistant />
+      </CatalogProvider>
     </QueryClientProvider>
   );
 }

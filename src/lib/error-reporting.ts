@@ -28,7 +28,7 @@ declare global {
 
 export function reportError(error: unknown, context: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
-  
+
   window.__telemetryEvents?.captureException?.(
     error,
     {
@@ -50,7 +50,7 @@ export function reportError(error: unknown, context: Record<string, unknown> = {
         ? error.message
         : String(error);
   const stack = error instanceof Error ? error.stack : undefined;
-  
+
   window.__reportRuntimeError?.({
     message,
     ...(stack !== undefined && { stack }),

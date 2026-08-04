@@ -9,7 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { SpotlightCard } from "@/components/site/SpotlightCard";
-import { cmsFaqs } from "@/lib/cms-config";
+import { useCatalog } from "@/lib/catalog-state";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
@@ -23,7 +23,8 @@ export const Route = createFileRoute("/faq")({
       { property: "og:title", content: "Frequently Asked Questions — SpinShine" },
       {
         property: "og:description",
-        content: "Answers to your questions about professional fabric care, payments, and service radius in Bangalore.",
+        content:
+          "Answers to your questions about professional fabric care, payments, and service radius in Bangalore.",
       },
       { property: "og:url", content: "/faq" },
     ],
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/faq")({
 });
 
 function FaqPage() {
+  const { faqs } = useCatalog();
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -47,10 +49,12 @@ function FaqPage() {
                 Customer Support
               </span>
               <h1 className="mt-4 text-5xl sm:text-6.5xl lg:text-7.5xl font-black tracking-tight leading-none">
-                Frequently Asked <span className="font-serif italic font-semibold text-teal-400">Questions.</span>
+                Frequently Asked{" "}
+                <span className="font-serif italic font-semibold text-teal-400">Questions.</span>
               </h1>
               <p className="mt-6 mx-auto max-w-2xl text-sm sm:text-base text-white/60 leading-relaxed">
-                Find clear answers to questions about fabric dry cleaning, on-site extraction, logistics, payments, and scheduling.
+                Find clear answers to questions about fabric dry cleaning, on-site extraction,
+                logistics, payments, and scheduling.
               </p>
             </Reveal>
           </div>
@@ -60,7 +64,7 @@ function FaqPage() {
         <section className="mx-auto max-w-3xl px-6 py-28 bg-grid-pattern relative">
           <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] bg-royal/5 rounded-full blur-3xl animate-float pointer-events-none" />
           <div className="space-y-16 relative">
-            {cmsFaqs.map((cat) => (
+            {faqs.map((cat) => (
               <div key={cat.id} className="space-y-6">
                 <Reveal>
                   <h2 className="text-lg font-extrabold text-foreground border-b border-border pb-3 flex items-center gap-2">
@@ -68,17 +72,19 @@ function FaqPage() {
                     {cat.label}
                   </h2>
                 </Reveal>
-                
+
                 <Accordion type="single" collapsible className="w-full space-y-4">
                   {cat.questions.map((item, idx) => (
                     <Reveal key={idx} delay={idx * 30}>
-                      <SpotlightCard className="shadow-soft hover:shadow-soft border-border/80" innerClassName="px-6 bg-card rounded-[24px]">
-                        <AccordionItem
-                          value={`${cat.id}-${idx}`}
-                          className="border-0"
-                        >
+                      <SpotlightCard
+                        className="shadow-soft hover:shadow-soft border-border/80"
+                        innerClassName="px-6 bg-card rounded-[24px]"
+                      >
+                        <AccordionItem value={`${cat.id}-${idx}`} className="border-0">
                           <AccordionTrigger className="text-sm font-bold text-foreground text-left py-4.5 hover:no-underline group">
-                            <span className="group-hover:text-royal transition-colors">{item.q}</span>
+                            <span className="group-hover:text-royal transition-colors">
+                              {item.q}
+                            </span>
                           </AccordionTrigger>
                           <AccordionContent className="text-sm leading-relaxed text-muted-foreground pb-5 border-t border-border pt-4">
                             {item.a}
@@ -98,9 +104,12 @@ function FaqPage() {
           <div className="absolute -top-24 -left-24 w-72 h-72 bg-royal/5 rounded-full blur-3xl" />
           <div className="mx-auto max-w-2xl space-y-6 relative">
             <Reveal>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">Still have questions?</h2>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+                Still have questions?
+              </h2>
               <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                If your fabric care question isn't answered here, feel free to reach out to our fabric technicians directly on WhatsApp or by calling our customer care number.
+                If your fabric care question isn't answered here, feel free to reach out to our
+                fabric technicians directly on WhatsApp or by calling our customer care number.
               </p>
               <div className="flex justify-center gap-4 pt-4">
                 <a

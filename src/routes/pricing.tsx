@@ -3,7 +3,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Reveal } from "@/components/site/Reveal";
 import { useState } from "react";
-import { SERVICES, estimatePrice, type ServiceKey } from "@/lib/booking";
+import { useCatalog } from "@/lib/catalog-state";
 import { SpotlightCard } from "@/components/site/SpotlightCard";
 
 export const Route = createFileRoute("/pricing")({
@@ -18,7 +18,8 @@ export const Route = createFileRoute("/pricing")({
       { property: "og:title", content: "Transparent Pricing — SpinShine" },
       {
         property: "og:description",
-        content: "Upfront pricing for fabric care services in Bangalore. Estimate your total cost in real-time.",
+        content:
+          "Upfront pricing for fabric care services in Bangalore. Estimate your total cost in real-time.",
       },
       { property: "og:url", content: "/pricing" },
     ],
@@ -28,12 +29,15 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
-  const [selectedService, setSelectedService] = useState<ServiceKey>(SERVICES[0]?.key || "curtains");
+  const { services, settings } = useCatalog();
+  const [selectedService, setSelectedService] = useState<string>(services[0]?.key || "curtains");
   const [quantity, setQuantity] = useState(5);
   const [mode, setMode] = useState<"pickup" | "onsite">("pickup");
 
-  const activeSvc = SERVICES.find((s) => s.key === selectedService)!;
-  const estimatedPrice = estimatePrice(selectedService, quantity, mode);
+  const activeSvc = services.find((s) => s.key === selectedService)!;
+  const estimatedPrice =
+    (activeSvc ? activeSvc.rate * Math.max(1, quantity) : 0) +
+    (mode === "onsite" ? settings.onsiteFee : 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,10 +53,12 @@ function PricingPage() {
                 Upfront Tariff
               </span>
               <h1 className="mt-4 text-5xl sm:text-6.5xl lg:text-7.5xl font-black tracking-tight leading-none">
-                Transparent <span className="font-serif italic font-semibold text-teal-400">pricing.</span>
+                Transparent{" "}
+                <span className="font-serif italic font-semibold text-teal-400">pricing.</span>
               </h1>
               <p className="mt-6 mx-auto max-w-2xl text-sm sm:text-base text-white/60 leading-relaxed">
-                We believe in complete transparency. Every pricing detail is quoted upfront before we collect or begin cleaning. No hidden fees or surprise taxes.
+                We believe in complete transparency. Every pricing detail is quoted upfront before
+                we collect or begin cleaning. No hidden fees or surprise taxes.
               </p>
             </Reveal>
           </div>
@@ -62,7 +68,6 @@ function PricingPage() {
         <section className="mx-auto max-w-5xl px-6 py-28 bg-grid-pattern relative">
           <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] bg-royal/5 rounded-full blur-3xl animate-float pointer-events-none" />
           <div className="grid gap-16 lg:grid-cols-[1.4fr_1fr] items-start relative">
-            
             {/* Tariff Grid */}
             <div className="space-y-8">
               <Reveal>
@@ -70,9 +75,12 @@ function PricingPage() {
                   <span className="inline-flex items-center gap-2 text-[10px] font-extrabold tracking-widest text-royal bg-royal/10 px-3 py-1 rounded-full uppercase">
                     Tariff Sheet
                   </span>
-                  <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Standard Service Rates</h2>
+                  <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
+                    Standard Service Rates
+                  </h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Our standard rates structured by service and fabric unit. Final counts are always confirmed on-site before tag application.
+                    Our standard rates structured by service and fabric unit. Final counts are
+                    always confirmed on-site before tag application.
                   </p>
                 </div>
               </Reveal>
@@ -87,10 +95,12 @@ function PricingPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-foreground">
-                    {SERVICES.map((s) => (
+                    {services.map((s) => (
                       <tr key={s.key} className="hover:bg-secondary/30 transition-colors">
                         <td className="px-6 py-5 font-semibold text-foreground">{s.name}</td>
-                        <td className="px-6 py-5 font-display font-extrabold text-royal text-base">₹{s.rate}</td>
+                        <td className="px-6 py-5 font-display font-extrabold text-royal text-base">
+                          ₹{s.rate}
+                        </td>
                         <td className="px-6 py-5 text-xs text-muted-foreground">{s.unit}</td>
                       </tr>
                     ))}
@@ -100,7 +110,9 @@ function PricingPage() {
 
               {/* Rate inclusions */}
               <div className="p-6 rounded-2xl border border-border bg-secondary/20 space-y-4">
-                <h3 className="font-bold text-foreground text-xs uppercase tracking-widest">Included in our base rate:</h3>
+                <h3 className="font-bold text-foreground text-xs uppercase tracking-widest">
+                  Included in our base rate:
+                </h3>
                 <div className="grid gap-4 sm:grid-cols-2 text-xs text-muted-foreground">
                   <div className="flex items-center gap-3">
                     <span className="text-teal font-extrabold text-sm">✓</span>
@@ -130,7 +142,9 @@ function PricingPage() {
               innerClassName="p-8 space-y-8"
             >
               <div className="space-y-1">
-                <span className="text-[9px] font-extrabold tracking-widest text-teal bg-teal/10 px-2.5 py-0.5 rounded-full uppercase">Configurator</span>
+                <span className="text-[9px] font-extrabold tracking-widest text-teal bg-teal/10 px-2.5 py-0.5 rounded-full uppercase">
+                  Configurator
+                </span>
                 <h2 className="text-xl font-black text-foreground">Estimate Calculator</h2>
                 <p className="text-xs text-muted-foreground">
                   Estimate cost in real-time based on your quantity.
@@ -145,10 +159,10 @@ function PricingPage() {
                   </label>
                   <select
                     value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value as ServiceKey)}
+                    onChange={(e) => setSelectedService(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-xs font-bold outline-none focus:ring-2 focus:ring-ring transition-all"
                   >
-                    {SERVICES.map((s) => (
+                    {services.map((s) => (
                       <option key={s.key} value={s.key} className="font-semibold">
                         {s.name}
                       </option>
@@ -207,7 +221,8 @@ function PricingPage() {
                   </div>
                   {mode === "onsite" && (
                     <p className="text-[9px] leading-relaxed text-muted-foreground">
-                      * Includes a flat ₹199 transport and machinery deployment charge.
+                      * Includes a flat ₹{settings.onsiteFee} transport and machinery deployment
+                      charge.
                     </p>
                   )}
                 </div>
@@ -216,13 +231,16 @@ function PricingPage() {
               {/* Estimate Output */}
               <div className="border-t border-border/80 pt-6 space-y-4">
                 <div className="flex justify-between items-baseline">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Estimated Total:</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    Estimated Total:
+                  </span>
                   <span className="text-4xl font-extrabold font-display text-foreground bg-gradient-to-r from-royal via-teal to-gold bg-clip-text text-transparent">
                     ₹{estimatedPrice}
                   </span>
                 </div>
                 <p className="text-[10px] leading-relaxed text-muted-foreground">
-                  * This estimate is illustrative. Final measurements and inspection are completed on-site by our technician before tags are applied.
+                  * This estimate is illustrative. Final measurements and inspection are completed
+                  on-site by our technician before tags are applied.
                 </p>
                 <Link
                   to="/book"
@@ -232,7 +250,6 @@ function PricingPage() {
                 </Link>
               </div>
             </SpotlightCard>
-
           </div>
         </section>
 
@@ -244,39 +261,54 @@ function PricingPage() {
               <span className="inline-flex items-center gap-2 rounded-full border border-teal/20 bg-teal/5 px-4.5 py-1.5 text-xs font-bold tracking-[0.25em] text-teal uppercase">
                 Payment Flexibility
               </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">Flexible Payment Options</h2>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+                Flexible Payment Options
+              </h2>
               <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
-                We make transactions effortless. Pay securely after service completion and check your final items before making a payment.
+                We make transactions effortless. Pay securely after service completion and check
+                your final items before making a payment.
               </p>
             </Reveal>
 
             <div className="mt-16 grid gap-8 sm:grid-cols-3 max-w-4xl mx-auto">
               <Reveal delay={60}>
-                <SpotlightCard className="h-full flex flex-col justify-between text-left" innerClassName="p-8 space-y-4">
+                <SpotlightCard
+                  className="h-full flex flex-col justify-between text-left"
+                  innerClassName="p-8 space-y-4"
+                >
                   <span className="text-2xl">📱</span>
                   <h3 className="font-bold text-foreground text-sm">UPI Payments</h3>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    Pay instantly via Google Pay, PhonePe, Paytm, or BHIM using our technician's secure dynamic QR code scanner.
+                    Pay instantly via Google Pay, PhonePe, Paytm, or BHIM using our technician's
+                    secure dynamic QR code scanner.
                   </p>
                 </SpotlightCard>
               </Reveal>
 
               <Reveal delay={120}>
-                <SpotlightCard className="h-full flex flex-col justify-between text-left" innerClassName="p-8 space-y-4">
+                <SpotlightCard
+                  className="h-full flex flex-col justify-between text-left"
+                  innerClassName="p-8 space-y-4"
+                >
                   <span className="text-2xl">💳</span>
                   <h3 className="font-bold text-foreground text-sm">Credit & Debit Cards</h3>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    We accept Visa, Mastercard, RuPay, and American Express. Technicians carry portable wireless POS terminals.
+                    We accept Visa, Mastercard, RuPay, and American Express. Technicians carry
+                    portable wireless POS terminals.
                   </p>
                 </SpotlightCard>
               </Reveal>
 
               <Reveal delay={180}>
-                <SpotlightCard className="h-full flex flex-col justify-between text-left" innerClassName="p-8 space-y-4">
+                <SpotlightCard
+                  className="h-full flex flex-col justify-between text-left"
+                  innerClassName="p-8 space-y-4"
+                >
                   <span className="text-2xl">💵</span>
                   <h3 className="font-bold text-foreground text-sm">Cash on Delivery</h3>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    Prefer cash? You can pay the exact invoice amount in cash to the technician after checking the final delivery.
+                    Prefer cash? You can pay the exact invoice amount in cash to the technician
+                    after checking the final delivery.
                   </p>
                 </SpotlightCard>
               </Reveal>

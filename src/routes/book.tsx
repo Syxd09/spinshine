@@ -1,17 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  SERVICES,
-  LOCALITIES,
-  RADIUS_KM,
-  PAYMENT_METHODS,
-  estimatePrice,
-  makeOrderRef,
-  nextDays,
-  toISODate,
-  type ServiceKey,
-} from "@/lib/booking";
+import { PAYMENT_METHODS, makeOrderRef, nextDays, toISODate } from "@/lib/booking";
+import { useCatalog } from "@/lib/catalog-state";
+import { X } from "lucide-react";
 
 export const Route = createFileRoute("/book")({
   head: () => ({
@@ -39,9 +31,30 @@ const STEPS = ["Service", "Mode", "Address", "Schedule", "Details", "Review"];
 
 type Slot = { slot: string; remaining: number };
 
+const LOCALITY_COORDS: Record<string, [number, number]> = {
+  Koramangala: [12.9352, 77.6245],
+  Indiranagar: [12.9719, 77.6412],
+  "HSR Layout": [12.9141, 77.6413],
+  Jayanagar: [12.9250, 77.5897],
+  "JP Nagar": [12.9063, 77.5857],
+  Whitefield: [12.9698, 77.7500],
+  Marathahalli: [12.9569, 77.7011],
+  Hebbal: [13.0358, 77.5970],
+  Yelahanka: [13.1007, 77.5963],
+  "RR Nagar": [12.9221, 77.5176],
+  "Sarjapur Road": [12.9165, 77.6762],
+  "Electronic City": [12.8452, 77.6602],
+  Nelamangala: [13.0963, 77.3916],
+  Devanahalli: [13.2499, 77.7099],
+  Hoskote: [13.0711, 77.7983],
+};
+
 function BookPage() {
+  const { services, localities, settings } = useCatalog();
+  const [mapLat, setMapLat] = useState(12.9716);
+  const [mapLng, setMapLng] = useState(77.5946);
   const [step, setStep] = useState(0);
-  const [service, setService] = useState<ServiceKey | null>(null);
+  const [service, setService] = useState<string | null>(null);
   const [qty, setQty] = useState(2);
   const [mode, setMode] = useState<"pickup" | "onsite">("pickup");
   const [locality, setLocality] = useState<string>("");
@@ -60,9 +73,27 @@ function BookPage() {
   const [error, setError] = useState<string | null>(null);
   const [orderRef, setOrderRef] = useState<string | null>(null);
 
-  const km = LOCALITIES.find((l) => l.name === locality)?.km ?? null;
-  const inRadius = km !== null && km <= RADIUS_KM;
-  const price = service ? estimatePrice(service, qty, mode) : 0;
+  // Simulated payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paySimulating, setPaySimulating] = useState(false);
+  const [paySuccess, setPaySuccess] = useState(false);
+  const [cardNo, setCardNo] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+
+  const [maxStep, setMaxStep] = useState(0);
+
+  useEffect(() => {
+    setMaxStep((m) => Math.max(m, step));
+  }, [step]);
+
+  const km = localities.find((l) => l.name === locality)?.km ?? null;
+  const inRadius = km !== null && km <= settings.radiusKm;
+  const svc = service ? services.find((s) => s.key === service) : undefined;
+  const price = service
+    ? (svc?.rate ?? 0) * Math.max(1, qty) + (mode === "onsite" ? settings.onsiteFee : 0)
+    : 0;
   const days = useMemo(() => nextDays(14), []);
 
   useEffect(() => {
@@ -85,7 +116,9 @@ function BookPage() {
               }
             }
           }
-        } catch {}
+        } catch {
+          /* ignore malformed local data */
+        }
         setBlocked(map);
       });
   }, []);
@@ -100,9 +133,17 @@ function BookPage() {
   }, [date, mode]);
 
   useEffect(() => {
-    if (mode === "onsite" && km !== null && km > RADIUS_KM) return;
-    if (mode === "pickup" && km !== null && km > RADIUS_KM) setMode("onsite");
-  }, [km, mode]);
+    if (mode === "onsite" && km !== null && km > settings.radiusKm) return;
+    if (mode === "pickup" && km !== null && km > settings.radiusKm) setMode("onsite");
+  }, [km, mode, settings.radiusKm]);
+
+  useEffect(() => {
+    if (locality && LOCALITY_COORDS[locality]) {
+      const [lat, lng] = LOCALITY_COORDS[locality];
+      setMapLat(lat);
+      setMapLng(lng);
+    }
+  }, [locality]);
 
   const canContinue = [
     !!service && qty > 0,
@@ -113,21 +154,22 @@ function BookPage() {
     true,
   ][step];
 
-  async function confirm() {
-    if (!service || !date || !slot) return;
+  async function executeBooking() {
+    if (!service || !date || !slot) return false;
     setSubmitting(true);
     setError(null);
     const ref = makeOrderRef();
     const delivery = new Date(date);
-    delivery.setDate(delivery.getDate() + (mode === "pickup" ? 3 : 0));
+    delivery.setDate(delivery.getDate() + (mode === "pickup" ? settings.deliveryDays : 0));
+    const { data: sessionData } = await supabase.auth.getSession();
     const bookingPayload = {
       order_ref: ref,
-      service: SERVICES.find((s) => s.key === service)!.name,
+      service: svc?.name ?? "",
       mode,
       customer_name: name.trim(),
       phone: phone.trim(),
       email: email.trim() || null,
-      address: `${address.trim()}, ${locality}`,
+      address: `${address.trim()}, ${locality} [GPS: ${mapLat.toFixed(6)}, ${mapLng.toFixed(6)}]`,
       landmark: landmark.trim() || null,
       notes: notes.trim() || null,
       pickup_date: date,
@@ -137,13 +179,25 @@ function BookPage() {
       estimated_price: price,
       payment_method: payment,
       status: "confirmed",
+      qty: Math.max(1, qty),
+      line_items: [
+        {
+          service: svc?.key ?? service,
+          name: svc?.name ?? "",
+          unit: svc?.unit ?? "",
+          qty: Math.max(1, qty),
+          rate: svc?.rate ?? 0,
+          price: (svc?.rate ?? 0) * Math.max(1, qty),
+        },
+      ],
+      customer_id: sessionData?.session?.user.id ?? null,
     };
 
     const { error: err } = await supabase.from("bookings").insert(bookingPayload);
     setSubmitting(false);
     if (err) {
       setError("We couldn't confirm that slot. Please pick another and try again.");
-      return;
+      return false;
     }
 
     // Mirror to local storage
@@ -161,6 +215,15 @@ function BookPage() {
       console.error("Local storage mirror save failed", e);
     }
     setOrderRef(ref);
+    return true;
+  }
+
+  async function confirm() {
+    if (payment === "cash") {
+      await executeBooking();
+    } else {
+      setShowPaymentModal(true);
+    }
   }
 
   if (orderRef) return <Success orderRef={orderRef} date={date} slot={slot} price={price} />;
@@ -174,12 +237,12 @@ function BookPage() {
           Live slot availability · free rescheduling up to 12 hours before
         </p>
 
-        <Stepper step={step} />
+        <Stepper step={step} setStep={setStep} maxStep={maxStep} />
 
         <div key={step} className="reveal mt-10">
           {step === 0 && (
             <Grid>
-              {SERVICES.map((s) => (
+              {services.map((s) => (
                 <Choice
                   key={s.key}
                   active={service === s.key}
@@ -193,8 +256,7 @@ function BookPage() {
                   <div>
                     <p className="font-semibold">How many items?</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Charged per {SERVICES.find((s) => s.key === service)!.unit}. Final count
-                      verified at pickup.
+                      Charged per {svc?.unit}. Final count verified at pickup.
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
@@ -213,7 +275,7 @@ function BookPage() {
                 active={mode === "pickup"}
                 onClick={() => setMode("pickup")}
                 title="Pickup & delivery"
-                sub="We collect, clean at our facility and return in 48–72 hours. Within 30 km."
+                sub={`We collect, clean at our facility and return in ${settings.deliveryDays * 24}–${(settings.deliveryDays + 1) * 24} hours. Within ${settings.radiusKm} km.`}
               />
               <Choice
                 active={mode === "onsite"}
@@ -233,7 +295,7 @@ function BookPage() {
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Select your area</option>
-                  {LOCALITIES.map((l) => (
+                  {localities.map((l) => (
                     <option key={l.name} value={l.name}>
                       {l.name} · {l.km} km
                     </option>
@@ -255,9 +317,11 @@ function BookPage() {
                     </>
                   ) : (
                     <>
-                      <strong>{km} km — outside the 30 km pickup radius.</strong> Pickup is
-                      unavailable here, but on-site cleaning is still covered. We've switched your
-                      booking to on-site.
+                      <strong>
+                        {km} km — outside the {settings.radiusKm} km pickup radius.
+                      </strong>{" "}
+                      Pickup is unavailable here, but on-site cleaning is still covered. We've
+                      switched your booking to on-site.
                     </>
                   )}
                 </div>
@@ -280,6 +344,14 @@ function BookPage() {
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </Field>
+              <MapPicker
+                lat={mapLat}
+                lng={mapLng}
+                onChange={(la, ln) => {
+                  setMapLat(la);
+                  setMapLng(ln);
+                }}
+              />
             </div>
           )}
 
@@ -330,28 +402,43 @@ function BookPage() {
               {date && (
                 <div className="reveal">
                   <p className="text-sm font-semibold">Choose a 2-hour slot</p>
-                  {!slots && <p className="mt-4 text-sm text-muted-foreground">Checking live availability…</p>}
+                  {!slots && (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Checking live availability…
+                    </p>
+                  )}
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    {(slots ?? [])
-                      .filter((s) => s.remaining > 0)
-                      .map((s) => (
+                    {(slots ?? []).map((s) => {
+                      const isFull = s.remaining <= 0;
+                      const active = slot === s.slot;
+                      return (
                         <button
                           key={s.slot}
+                          disabled={isFull}
                           onClick={() => setSlot(s.slot)}
-                          className={`rounded-2xl border px-4 py-4 text-sm transition-all duration-300 ${
-                            slot === s.slot
+                          className={`rounded-2xl border px-4 py-4 text-sm transition-all duration-300 text-left ${
+                            active
                               ? "border-transparent bg-navy-gradient text-white shadow-lift"
-                              : "border-border bg-card hover:-translate-y-1 hover:shadow-soft"
+                              : isFull
+                                ? "border-border bg-secondary opacity-40 cursor-not-allowed"
+                                : "border-border bg-card hover:-translate-y-1 hover:shadow-soft cursor-pointer"
                           }`}
                         >
                           <span className="block font-semibold">{s.slot}</span>
                           <span
-                            className={`mt-1 block text-xs ${slot === s.slot ? "text-white/60" : "text-muted-foreground"}`}
+                            className={`mt-1 block text-xs ${
+                              active
+                                ? "text-white/60"
+                                : isFull
+                                  ? "text-rose-500 font-semibold"
+                                  : "text-muted-foreground"
+                            }`}
                           >
-                            {s.remaining} slot{s.remaining > 1 ? "s" : ""} left
+                            {isFull ? "Fully Booked" : `${s.remaining} slot${s.remaining > 1 ? "s" : ""} left`}
                           </span>
                         </button>
-                      ))}
+                      );
+                    })}
                   </div>
                   {slots && slots.every((s) => s.remaining === 0) && (
                     <p className="mt-4 text-sm text-muted-foreground">
@@ -369,7 +456,12 @@ function BookPage() {
                 <Input value={name} onChange={setName} maxLength={80} />
               </Field>
               <Field label="Phone">
-                <Input value={phone} onChange={setPhone} maxLength={15} placeholder="10-digit mobile" />
+                <Input
+                  value={phone}
+                  onChange={setPhone}
+                  maxLength={15}
+                  placeholder="10-digit mobile"
+                />
               </Field>
               <Field label="Email (optional)">
                 <Input value={email} onChange={setEmail} maxLength={120} />
@@ -385,7 +477,7 @@ function BookPage() {
               <div className="surface p-7">
                 <h2 className="text-lg">Order summary</h2>
                 <dl className="mt-6 space-y-3 text-sm">
-                  <Row k="Service" v={`${SERVICES.find((s) => s.key === service)?.name} × ${qty}`} />
+                  <Row k="Service" v={`${svc?.name ?? "-"} × ${qty}`} />
                   <Row k="Mode" v={mode === "pickup" ? "Pickup & delivery" : "On-site cleaning"} />
                   <Row
                     k="Date & slot"
@@ -435,25 +527,200 @@ function BookPage() {
           )}
         </div>
 
-        {step < 5 && (
+        {step <= 5 && (
           <div className="mt-12 flex items-center justify-between">
             <button
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0}
-              className="text-sm font-semibold text-muted-foreground disabled:opacity-30"
+              className="text-sm font-semibold text-muted-foreground disabled:opacity-30 cursor-pointer"
             >
               ← Back
             </button>
-            <button
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canContinue}
-              className="rounded-full bg-navy-gradient px-8 py-3.5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-40"
-            >
-              Continue
-            </button>
+            {step < 5 && (
+              <button
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canContinue}
+                className="rounded-full bg-navy-gradient px-8 py-3.5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-40 cursor-pointer"
+              >
+                Continue
+              </button>
+            )}
           </div>
         )}
       </main>
+
+      {/* Simulated Payment Gateway Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="relative w-full max-w-md rounded-3xl bg-card border border-border/80 p-8 shadow-lift overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Background Glow */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-royal/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center justify-between border-b border-border/60 pb-4 mb-6">
+              <div>
+                <h3 className="font-display text-lg font-bold text-foreground">Secure Checkout</h3>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">SpinShine Pay Gateway</p>
+              </div>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                disabled={paySimulating || paySuccess}
+                className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors disabled:opacity-30"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {paySimulating ? (
+              <div className="py-12 text-center space-y-4">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-royal border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                <p className="text-sm font-semibold text-foreground">Processing payment of ₹{price}...</p>
+                <p className="text-xs text-muted-foreground">Please do not refresh the page or hit back.</p>
+              </div>
+            ) : paySuccess ? (
+              <div className="py-12 text-center space-y-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal/15 text-teal text-3xl animate-bounce">
+                  ✓
+                </div>
+                <p className="text-sm font-bold text-foreground">Payment Successful!</p>
+                <p className="text-xs text-muted-foreground">Confirming your slot and finishing booking...</p>
+              </div>
+            ) : payment === "upi" ? (
+              <div className="space-y-6">
+                <p className="text-xs text-muted-foreground text-center">
+                  Scan the QR code below using any UPI app (GPay, PhonePe, Paytm) to complete payment.
+                </p>
+                
+                {/* Simulated QR Code */}
+                <div className="mx-auto w-48 h-48 bg-white border-2 border-border p-3 rounded-2xl flex flex-col items-center justify-center shadow-soft relative overflow-hidden group">
+                  <div className="w-full h-full bg-grid-pattern opacity-80 flex items-center justify-center">
+                    {/* Simulated QR code grid */}
+                    <div className="w-40 h-40 border-8 border-navy rounded flex flex-wrap p-2 gap-1.5 opacity-80">
+                      <div className="w-10 h-10 border-4 border-navy rounded-sm" />
+                      <div className="flex-1 flex flex-wrap gap-1">
+                        <div className="w-3 h-3 bg-navy rounded-sm" />
+                        <div className="w-3 h-3 bg-navy rounded-sm" />
+                        <div className="w-3 h-3 bg-navy rounded-sm" />
+                      </div>
+                      <div className="w-full flex justify-between">
+                        <div className="w-10 h-10 border-4 border-navy rounded-sm" />
+                        <div className="w-10 h-10 border-4 border-navy rounded-sm" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 bg-navy/90 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 text-center">
+                    <span className="text-xs font-bold">SpinShine UPI Portal</span>
+                    <span className="text-[10px] text-teal mt-1">₹{price}</span>
+                  </div>
+                </div>
+
+                <div className="text-center bg-secondary/40 py-2.5 rounded-xl border border-border/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Amount to Pay</span>
+                  <p className="text-lg font-black text-foreground mt-0.5">₹{price}</p>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    setPaySimulating(true);
+                    setTimeout(async () => {
+                      setPaySimulating(false);
+                      setPaySuccess(true);
+                      setTimeout(async () => {
+                        const success = await executeBooking();
+                        if (success) {
+                          setShowPaymentModal(false);
+                        } else {
+                          setPaySuccess(false);
+                        }
+                      }, 1000);
+                    }, 1800);
+                  }}
+                  className="w-full rounded-full bg-navy-gradient py-3.5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
+                >
+                  Simulate GPay/PhonePe Success
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground text-center">
+                  Enter your card details to complete the payment simulation.
+                </p>
+
+                {/* Simulated Glassmorphic Credit Card Preview */}
+                <div className="w-full h-44 rounded-2xl bg-gradient-to-br from-navy to-royal border border-white/10 p-5 text-white flex flex-col justify-between shadow-lift relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-teal/10 rounded-full blur-xl pointer-events-none" />
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs font-bold tracking-widest uppercase text-white/50">SpinShine Premium</span>
+                    <span className="text-sm font-black italic">VISA</span>
+                  </div>
+                  <div className="font-mono text-base tracking-widest text-white/90 py-2">
+                    {cardNo.padEnd(16, "•").replace(/(.{4})/g, "$1 ").trim()}
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-[8px] text-white/40 block uppercase tracking-wider">Card Holder</span>
+                      <span className="text-xs font-bold tracking-wide uppercase">{cardHolder || "Your Name"}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[8px] text-white/40 block uppercase tracking-wider">Expires</span>
+                      <span className="text-xs font-bold tracking-wide">{cardExpiry || "MM/YY"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Input
+                    value={cardHolder}
+                    onChange={setCardHolder}
+                    placeholder="Cardholder Name"
+                  />
+                  <Input
+                    value={cardNo}
+                    onChange={(v) => setCardNo(v.replace(/\D/g, "").slice(0, 16))}
+                    placeholder="Card Number (16 Digits)"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      value={cardExpiry}
+                      onChange={(v) => setCardExpiry(v.slice(0, 5))}
+                      placeholder="MM/YY"
+                    />
+                    <Input
+                      value={cardCvv}
+                      onChange={(v) => setCardCvv(v.replace(/\D/g, "").slice(0, 3))}
+                      placeholder="CVV"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (cardNo.length < 16 || cardExpiry.length < 5 || cardCvv.length < 3) {
+                      alert("Please fill in valid mock card credentials.");
+                      return;
+                    }
+                    setPaySimulating(true);
+                    setTimeout(async () => {
+                      setPaySimulating(false);
+                      setPaySuccess(true);
+                      setTimeout(async () => {
+                        const success = await executeBooking();
+                        if (success) {
+                          setShowPaymentModal(false);
+                        } else {
+                          setPaySuccess(false);
+                        }
+                      }, 1000);
+                    }, 1800);
+                  }}
+                  className="w-full rounded-full bg-navy-gradient py-3.5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
+                >
+                  Pay ₹{price} (Simulate Gateway)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -473,25 +740,40 @@ function TopBar() {
   );
 }
 
-function Stepper({ step }: { step: number }) {
+function Stepper({
+  step,
+  setStep,
+  maxStep,
+}: {
+  step: number;
+  setStep: (s: number) => void;
+  maxStep: number;
+}) {
   return (
     <div className="mt-10 flex items-center gap-2">
       {STEPS.map((s, i) => (
-        <div key={s} className="flex flex-1 items-center gap-2">
-          <div className="flex-1">
-            <div className="h-1 overflow-hidden rounded-full bg-border">
+        <button
+          key={s}
+          disabled={i > maxStep}
+          onClick={() => setStep(i)}
+          className="flex-1 text-left focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
+        >
+          <div>
+            <div className="h-1 overflow-hidden rounded-full bg-border group-hover:bg-border/80 transition-colors">
               <div
                 className="h-full rounded-full bg-[image:var(--gradient-accent)] transition-all duration-700"
                 style={{ width: i <= step ? "100%" : "0%" }}
               />
             </div>
             <span
-              className={`mt-2 hidden text-xs sm:block ${i <= step ? "text-foreground" : "text-muted-foreground"}`}
+              className={`mt-2 hidden text-xs sm:block transition-colors ${
+                i === step ? "text-foreground font-bold" : i < step ? "text-foreground" : "text-muted-foreground"
+              }`}
             >
               {s}
             </span>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -628,6 +910,102 @@ function Success({
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+import { useRef as lRef } from "react";
+
+function MapPicker({
+  lat,
+  lng,
+  onChange,
+}: {
+  lat: number;
+  lng: number;
+  onChange: (lat: number, lng: number) => void;
+}) {
+  const mapRef = lRef<HTMLDivElement>(null);
+  const leafletMap = lRef<any>(null);
+  const markerRef = lRef<any>(null);
+
+  useEffect(() => {
+    const loadLeaflet = async () => {
+      if ((window as any).L) return;
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+
+      return new Promise<void>((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = () => resolve();
+        document.body.appendChild(script);
+      });
+    };
+
+    loadLeaflet().then(() => {
+      const L = (window as any).L;
+      if (!L || !mapRef.current) return;
+
+      if (!leafletMap.current) {
+        leafletMap.current = L.map(mapRef.current).setView([lat, lng], 14);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(leafletMap.current);
+
+        markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(leafletMap.current);
+
+        markerRef.current.on("dragend", () => {
+          const position = markerRef.current.getLatLng();
+          onChange(position.lat, position.lng);
+        });
+
+        leafletMap.current.on("click", (e: any) => {
+          markerRef.current.setLatLng(e.latlng);
+          onChange(e.latlng.lat, e.latlng.lng);
+        });
+      }
+    });
+
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const L = (window as any).L;
+    if (L && leafletMap.current && markerRef.current) {
+      const currentCenter = leafletMap.current.getCenter();
+      if (Math.abs(currentCenter.lat - lat) > 0.0001 || Math.abs(currentCenter.lng - lng) > 0.0001) {
+        leafletMap.current.setView([lat, lng], 14);
+        markerRef.current.setLatLng([lat, lng]);
+      }
+    }
+  }, [lat, lng]);
+
+  return (
+    <div className="space-y-2 mt-4">
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-semibold">Pinpoint exact address</span>
+        <span className="text-[10px] text-teal bg-teal/5 px-2 py-0.5 rounded border border-teal/20 font-mono">
+          {lat.toFixed(5)}, {lng.toFixed(5)}
+        </span>
+      </div>
+      <div
+        ref={mapRef}
+        className="h-64 rounded-2xl border border-border overflow-hidden bg-secondary shadow-soft z-10"
+        style={{ minHeight: "260px" }}
+      />
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Drag the marker or click on the map to pinpoint your exact home location for the technician/driver.
+      </p>
     </div>
   );
 }
