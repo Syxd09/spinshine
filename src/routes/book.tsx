@@ -31,6 +31,24 @@ const STEPS = ["Service", "Mode", "Address", "Schedule", "Details", "Review"];
 
 type Slot = { slot: string; remaining: number };
 
+const HUB_COORDS: [number, number] = [12.9716, 77.5946];
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function deg2rad(deg: number) {
+  return deg * (Math.PI / 180);
+}
+
 const LOCALITY_COORDS: Record<string, [number, number]> = {
   Koramangala: [12.9352, 77.6245],
   Indiranagar: [12.9719, 77.6412],
@@ -88,8 +106,9 @@ function BookPage() {
     setMaxStep((m) => Math.max(m, step));
   }, [step]);
 
-  const km = localities.find((l) => l.name === locality)?.km ?? null;
-  const inRadius = km !== null && km <= settings.radiusKm;
+  const pinpointDistance = getDistanceKm(mapLat, mapLng, HUB_COORDS[0], HUB_COORDS[1]);
+  const km = parseFloat(pinpointDistance.toFixed(1));
+  const inRadius = km <= settings.radiusKm;
   const svc = service ? services.find((s) => s.key === service) : undefined;
   const price = service
     ? (svc?.rate ?? 0) * Math.max(1, qty) + (mode === "onsite" ? settings.onsiteFee : 0)
@@ -142,13 +161,17 @@ function BookPage() {
       const [lat, lng] = LOCALITY_COORDS[locality];
       setMapLat(lat);
       setMapLng(lng);
+      setAddress((prev) => {
+        const clean = prev.replace(/\s*\[GPS:\s*-?\d+\.\d+,\s*-?\d+\.\d+\]/, "").trim();
+        return clean ? `${clean} [GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}]` : `[GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}]`;
+      });
     }
   }, [locality]);
 
   const canContinue = [
     !!service && qty > 0,
     !!mode,
-    !!locality && address.trim().length > 5 && (inRadius || mode === "onsite"),
+    !!locality && address.replace(/\s*\[GPS:\s*-?\d+\.\d+,\s*-?\d+\.\d+\]/, "").trim().length > 5 && (inRadius || mode === "onsite"),
     !!date && !!slot,
     name.trim().length > 1 && /^[0-9]{10}$/.test(phone.replace(/\D/g, "").slice(-10)),
     true,
@@ -169,7 +192,7 @@ function BookPage() {
       customer_name: name.trim(),
       phone: phone.trim(),
       email: email.trim() || null,
-      address: `${address.trim()}, ${locality} [GPS: ${mapLat.toFixed(6)}, ${mapLng.toFixed(6)}]`,
+      address: `${address.replace(/\s*\[GPS:\s*-?\d+\.\d+,\s*-?\d+\.\d+\]/, "").trim()}, ${locality} [GPS: ${mapLat.toFixed(6)}, ${mapLng.toFixed(6)}]`,
       landmark: landmark.trim() || null,
       notes: notes.trim() || null,
       pickup_date: date,
@@ -226,7 +249,7 @@ function BookPage() {
     }
   }
 
-  if (orderRef) return <Success orderRef={orderRef} date={date} slot={slot} price={price} />;
+  if (orderRef) return <Success orderRef={orderRef} date={date} slot={slot} price={price} phone={phone} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -328,8 +351,11 @@ function BookPage() {
               )}
               <Field label="Full address">
                 <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  value={address.replace(/\s*\[GPS:\s*-?\d+\.\d+,\s*-?\d+\.\d+\]/, "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAddress(`${val} [GPS: ${mapLat.toFixed(6)}, ${mapLng.toFixed(6)}]`);
+                  }}
                   rows={3}
                   maxLength={300}
                   placeholder="Flat / house no, building, street"
@@ -350,6 +376,19 @@ function BookPage() {
                 onChange={(la, ln) => {
                   setMapLat(la);
                   setMapLng(ln);
+                  setAddress("Resolving address from map...");
+                  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${la}&lon=${ln}&accept-language=en`)
+                    .then((res) => res.json())
+                    .then((data) => {
+                      if (data && data.display_name) {
+                        setAddress(`${data.display_name} [GPS: ${la.toFixed(6)}, ${ln.toFixed(6)}]`);
+                      } else {
+                        setAddress(`[GPS: ${la.toFixed(6)}, ${ln.toFixed(6)}]`);
+                      }
+                    })
+                    .catch(() => {
+                      setAddress(`[GPS: ${la.toFixed(6)}, ${ln.toFixed(6)}]`);
+                    });
                 }}
               />
             </div>
@@ -483,7 +522,7 @@ function BookPage() {
                     k="Date & slot"
                     v={`${new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${slot}`}
                   />
-                  <Row k="Address" v={`${address}, ${locality}`} />
+                  <Row k="Address" v={`${address.replace(/\s*\[GPS:\s*-?\d+\.\d+,\s*-?\d+\.\d+\]/, "")}, ${locality}`} />
                   <Row k="Contact" v={`${name} · ${phone}`} />
                   <Row
                     k={mode === "pickup" ? "Estimated delivery" : "Completion"}
@@ -867,11 +906,13 @@ function Success({
   date,
   slot,
   price,
+  phone,
 }: {
   orderRef: string;
   date: string;
   slot: string;
   price: number;
+  phone: string;
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-gradient px-6">
@@ -898,6 +939,7 @@ function Success({
         <div className="mt-8 flex gap-3">
           <Link
             to="/track"
+            search={{ ref: orderRef, phone }}
             className="flex-1 rounded-full bg-navy-gradient py-3 text-sm font-semibold text-white"
           >
             Track order

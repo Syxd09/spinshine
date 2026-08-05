@@ -7,9 +7,30 @@ type Props = {
   setLocalities: (next: LocalityItem[]) => void;
   radiusKm: number;
   setRadiusKm: (next: number) => void;
+  capacityPerSlot: number;
+  setCapacityPerSlot: (next: number) => void;
+  deliveryDays: number;
+  setDeliveryDays: (next: number) => void;
+  onsiteFee: number;
+  setOnsiteFee: (next: number) => void;
+  maxQuantity: number;
+  setMaxQuantity: (next: number) => void;
 };
 
-export function CoverageTab({ localities, setLocalities, radiusKm, setRadiusKm }: Props) {
+export function CoverageTab({
+  localities,
+  setLocalities,
+  radiusKm,
+  setRadiusKm,
+  capacityPerSlot,
+  setCapacityPerSlot,
+  deliveryDays,
+  setDeliveryDays,
+  onsiteFee,
+  setOnsiteFee,
+  maxQuantity,
+  setMaxQuantity,
+}: Props) {
   const [name, setName] = useState("");
   const [km, setKm] = useState(10);
 
@@ -129,11 +150,63 @@ export function CoverageTab({ localities, setLocalities, radiusKm, setRadiusKm }
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl bg-navy text-white py-3 text-xs font-bold uppercase tracking-wider hover:bg-royal hover:shadow-glow transition-all"
+            className="w-full rounded-xl bg-navy text-white py-3 text-xs font-bold uppercase tracking-wider hover:bg-royal hover:shadow-glow transition-all cursor-pointer"
           >
             Add Area Profile
           </button>
         </form>
+
+        <hr className="border-border my-6" />
+
+        <h2 className="text-sm font-extrabold uppercase tracking-widest text-foreground">
+          Operations Settings
+        </h2>
+        <div className="space-y-4 pt-2">
+          <div>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase">
+              Max Capacity per Slot
+            </label>
+            <input
+              type="number"
+              value={capacityPerSlot}
+              onChange={(e) => setCapacityPerSlot(parseInt(e.target.value) || 1)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase">
+              Standard Delivery Time (Days)
+            </label>
+            <input
+              type="number"
+              value={deliveryDays}
+              onChange={(e) => setDeliveryDays(parseInt(e.target.value) || 1)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase">
+              On-Site Convenience Fee (₹)
+            </label>
+            <input
+              type="number"
+              value={onsiteFee}
+              onChange={(e) => setOnsiteFee(parseInt(e.target.value) || 0)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase">
+              Max Item Quantity per Order
+            </label>
+            <input
+              type="number"
+              value={maxQuantity}
+              onChange={(e) => setMaxQuantity(parseInt(e.target.value) || 1)}
+              className={inputCls}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

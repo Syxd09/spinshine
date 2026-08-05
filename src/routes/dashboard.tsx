@@ -4,7 +4,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { SpotlightCard } from "@/components/site/SpotlightCard";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyRole } from "@/lib/admin-actions";
+import { getMyRole, makeMeStaff } from "@/lib/admin-actions";
 import { getMyAssignedBookings, advanceAssignedStatus } from "@/lib/staff-actions";
 import { STAGE_LABELS } from "@/lib/booking";
 import type { BookingRow } from "@/features/admin/types";
@@ -29,13 +29,25 @@ function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [ref, setRef] = useState("");
+  const [phone, setPhone] = useState("");
 
+  async function promoteToStaff(targetRole: "technician" | "driver") {
+    setLoading(true);
+    const res = await makeMeStaff({ data: { role: targetRole } });
+    if (res.success) {
+      window.location.reload();
+    } else {
+      alert("Failed to promote: " + res.error);
+      setLoading(false);
+    }
+  }
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     const res = await getMyAssignedBookings();
     if (res.success) setBookings((res.data as unknown as BookingRow[]) ?? []);
-    else setError(res.error);
+    else setError(res.error ?? null);
     setLoading(false);
   }, []);
 
@@ -65,7 +77,7 @@ function DashboardPage() {
       setMessage(`Booking marked as "${status}".`);
       await load();
     } else {
-      setError(res.error);
+      setError(res.error ?? null);
     }
   }
 
@@ -142,12 +154,28 @@ function DashboardPage() {
                 This dashboard is for technicians and drivers. Customers can manage their orders
                 from their account page.
               </p>
-              <Link
-                to="/account"
-                className="inline-block rounded-xl bg-gradient-to-r from-teal via-royal to-gold py-3 px-8 text-xs font-bold uppercase tracking-wider text-white"
-              >
-                My account
-              </Link>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  to="/account"
+                  className="rounded-xl border border-white/20 hover:bg-white/10 py-3 px-6 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer"
+                >
+                  My account
+                </Link>
+                <button
+                  disabled={loading}
+                  onClick={() => promoteToStaff("technician")}
+                  className="rounded-xl bg-teal py-3 px-6 text-xs font-bold uppercase tracking-wider text-white hover:bg-teal/80 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Become Technician
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => promoteToStaff("driver")}
+                  className="rounded-xl bg-royal py-3 px-6 text-xs font-bold uppercase tracking-wider text-white hover:bg-royal/80 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Become Driver
+                </button>
+              </div>
             </SpotlightCard>
           )}
 
@@ -222,7 +250,29 @@ function DashboardPage() {
                         </span>
                       </p>
                       <p className="text-muted-foreground">
-                        Address: <span className="font-bold text-foreground">{b.address}</span>
+                        Address:{" "}
+                        <span className="font-bold text-foreground">
+                          {(() => {
+                            const match = (b.address || "").match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
+                            if (match && b.address) {
+                              const cleanAddress = (b.address || "").replace(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/, "").trim();
+                              return (
+                                <>
+                                  {cleanAddress}{" "}
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-0.5 text-teal hover:underline ml-1 font-extrabold text-[10px]"
+                                  >
+                                    📍 View Map
+                                  </a>
+                                </>
+                              );
+                            }
+                            return b.address;
+                          })()}
+                        </span>
                       </p>
                       {b.phone && (
                         <p className="text-muted-foreground">

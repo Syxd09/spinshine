@@ -423,6 +423,14 @@ function AdminPage() {
                 setLocalities={setLocalities}
                 radiusKm={settings.radiusKm}
                 setRadiusKm={(n) => setSettings((s) => ({ ...s, radiusKm: n }))}
+                capacityPerSlot={settings.capacityPerSlot}
+                setCapacityPerSlot={(n) => setSettings((s) => ({ ...s, capacityPerSlot: n }))}
+                deliveryDays={settings.deliveryDays}
+                setDeliveryDays={(n) => setSettings((s) => ({ ...s, deliveryDays: n }))}
+                onsiteFee={settings.onsiteFee}
+                setOnsiteFee={(n) => setSettings((s) => ({ ...s, onsiteFee: n }))}
+                maxQuantity={settings.maxQuantity}
+                setMaxQuantity={(n) => setSettings((s) => ({ ...s, maxQuantity: n }))}
               />
             </div>
           )}

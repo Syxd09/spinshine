@@ -1,5 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
-import { getServerClient } from "@/lib/db";
+
 import {
   DEFAULT_SERVICES,
   DEFAULT_LOCALITIES,
@@ -106,15 +105,14 @@ function asFaqs(value: unknown): FaqCategory[] {
   return value as FaqCategory[];
 }
 
-async function readCatalogFromDb(): Promise<CatalogConfig> {
-  const db = getServerClient();
-  if (!db) throw new Error("Supabase not configured");
+import { supabase } from "@/integrations/supabase/client";
 
+async function readCatalogFromDb(): Promise<CatalogConfig> {
   const [servicesRes, localitiesRes, settingsRes, cmsRes] = await Promise.all([
-    db.from("services").select("*").eq("active", true).order("sort_order", { ascending: true }),
-    db.from("localities").select("*").order("sort_order", { ascending: true }),
-    db.from("settings").select("key, value"),
-    db.from("cms_content").select("section, key, value"),
+    supabase.from("services").select("*").eq("active", true).order("sort_order", { ascending: true }),
+    supabase.from("localities").select("*").order("sort_order", { ascending: true }),
+    supabase.from("settings").select("key, value"),
+    supabase.from("cms_content").select("section, key, value"),
   ]);
 
   if (servicesRes.error) throw servicesRes.error;
@@ -186,11 +184,6 @@ export function invalidateCatalogCache() {
 }
 
 export async function loadCatalog(): Promise<CatalogConfig> {
-  if (!isServer()) {
-    // Client: always fetch fresh from the server.
-    return getCatalogConfig();
-  }
-
   const now = Date.now();
   if (catalogCache && now - catalogCache.at < CATALOG_TTL_MS) {
     return catalogCache.data;
@@ -206,6 +199,6 @@ export async function loadCatalog(): Promise<CatalogConfig> {
   }
 }
 
-export const getCatalogConfig = createServerFn({ method: "GET" }).handler(async () => {
+export async function getCatalogConfig() {
   return loadCatalog();
-});
+}

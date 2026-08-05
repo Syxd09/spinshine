@@ -42,7 +42,7 @@ function AccountPage() {
     setError(null);
     const res = await getMyBookings();
     if (res.success) setBookings((res.data as unknown as BookingRow[]) ?? []);
-    else setError(res.error);
+    else setError(res.error ?? null);
     setLoading(false);
   }, []);
 
@@ -68,7 +68,7 @@ function AccountPage() {
       setMessage("Booking cancelled.");
       await load();
     } else {
-      setError(res.error);
+      setError(res.error ?? null);
     }
   }
 
@@ -88,7 +88,7 @@ function AccountPage() {
       setMessage("Booking rescheduled.");
       await load();
     } else {
-      setError(res.error);
+      setError(res.error ?? null);
     }
   }
 

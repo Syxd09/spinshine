@@ -8,6 +8,12 @@ import { Reveal } from "@/components/site/Reveal";
 import { SpotlightCard } from "@/components/site/SpotlightCard";
 
 export const Route = createFileRoute("/track")({
+  validateSearch: (search: Record<string, unknown>): { ref?: string | undefined; phone?: string | undefined } => {
+    return {
+      ref: search["ref"] ? String(search["ref"]) : undefined,
+      phone: search["phone"] ? String(search["phone"]) : undefined,
+    };
+  },
   head: () => ({
     meta: [
       { title: "Track Your Order — SpinShine Bangalore" },
@@ -61,27 +67,71 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
     "This booking was cancelled. If this is a mistake, please contact customer care on WhatsApp.",
 };
 
+import { useEffect } from "react";
+
 function TrackPage() {
-  const [ref, setRef] = useState("");
-  const [phone, setPhone] = useState("");
+  const { ref: initRef, phone: initPhone } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [ref, setRef] = useState(initRef || "");
+  const [phone, setPhone] = useState(initPhone || "");
   const [result, setResult] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function lookup() {
+  useEffect(() => {
+    if (!initRef || !initPhone) return;
+    
+    // Small timeout to allow everything to initialize/mount
+    const timer = setTimeout(() => {
+      lookupWithParams(initRef, initPhone);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [initRef, initPhone]);
+
+  // Realtime subscription for live updates
+  useEffect(() => {
+    if (!result?.order_ref) return;
+
+    const channel = supabase
+      .channel(`live-booking-${result.order_ref}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bookings",
+          filter: `order_ref=eq.${result.order_ref.trim().toUpperCase()}`,
+        },
+        (payload) => {
+          const updated = payload.new as Booking;
+          setResult(updated);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [result?.order_ref]);
+
+  async function lookupWithParams(r: string, p: string) {
     setLoading(true);
     setError(null);
     setResult(null);
 
-    // Normalize input phone to numbers only
-    const cleanInputPhone = phone.replace(/\D/g, "");
-    const cleanInputRef = ref.trim().toUpperCase();
+    const cleanInputPhone = p.replace(/\D/g, "");
+    const cleanInputRef = r.trim().toUpperCase();
+
+    // Sync to URL query params
+    navigate({
+      search: { ref: cleanInputRef, phone: p.trim() },
+      replace: true,
+    });
 
     try {
-      // 1. Try Supabase
       const { data } = await supabase.rpc("track_booking", {
         _order_ref: cleanInputRef,
-        _phone: phone.trim(),
+        _phone: p.trim(),
       });
 
       const row = (data as Booking[] | null)?.[0];
@@ -94,7 +144,6 @@ function TrackPage() {
       console.warn("Supabase lookup failed, falling back to local storage", e);
     }
 
-    // 2. Local storage fallback
     try {
       const localB = localStorage.getItem("ss_local_bookings");
       if (localB) {
@@ -102,7 +151,7 @@ function TrackPage() {
         const match = list.find((b) => {
           const matchRef = b.order_ref?.trim().toUpperCase() === cleanInputRef;
           const cleanBPhone = b.phone?.replace(/\D/g, "");
-          const matchPhone = cleanBPhone === cleanInputPhone || b.phone?.trim() === phone.trim();
+          const matchPhone = cleanBPhone === cleanInputPhone || b.phone?.trim() === p.trim();
           return matchRef && matchPhone;
         });
 
@@ -130,6 +179,11 @@ function TrackPage() {
     setLoading(false);
     setError("No order matches that ID and phone number.");
   }
+
+  async function lookup() {
+    await lookupWithParams(ref, phone);
+  }
+
 
   const activeIndex = result
     ? TRACK_STAGES.indexOf(result.status as (typeof TRACK_STAGES)[number])

@@ -140,6 +140,8 @@ export function estimatePrice(
   return base + onsiteCost;
 }
 
+let orderRefCounter = 0;
+
 export function makeOrderRef() {
   const now = new Date();
   const year = now.getFullYear().toString().slice(2);
@@ -149,7 +151,9 @@ export function makeOrderRef() {
     5,
     "0",
   );
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  orderRefCounter = (orderRefCounter + 1) % 1679616;
+  const seed = (orderRefCounter * 1234567 + 1013904223) % 1679616;
+  const rand = seed.toString(36).toUpperCase().padStart(4, "0");
   return `SS-${year}${month}${date}-${time}${rand}`;
 }
 

@@ -25,6 +25,7 @@ export function BookingsTab({
 }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   const [mbName, setMbName] = useState("");
   const [mbPhone, setMbPhone] = useState("");
@@ -94,7 +95,7 @@ export function BookingsTab({
       setMbLandmark("");
       setMbDate("");
       onChanged();
-      alert(`Booking manually added! Order Ref: ${res.data.order_ref}`);
+      alert(`Booking manually added! Order Ref: ${res.data?.order_ref}`);
     } else {
       alert("Failed to create booking: " + res.error);
     }
@@ -104,9 +105,33 @@ export function BookingsTab({
     <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] items-start">
       <div className="space-y-4">
         <div className="flex flex-wrap gap-3 items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">
-            Active Customer Orders ({filtered.length})
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-foreground">
+              Active Customer Orders ({filtered.length})
+            </h2>
+            <div className="flex items-center gap-1 border border-border p-1 bg-secondary/30 rounded-full">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+                  viewMode === "list"
+                    ? "bg-navy text-white shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                List
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+                  viewMode === "map"
+                    ? "bg-navy text-white shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Map View
+              </button>
+            </div>
+          </div>
           <div className="flex gap-2">
             <div className="relative">
               <Search
@@ -136,7 +161,9 @@ export function BookingsTab({
           </div>
         </div>
 
-        {loading ? (
+        {viewMode === "map" ? (
+          <BookingsMap bookings={filtered} />
+        ) : loading ? (
           <div className="text-center py-12 text-xs text-muted-foreground">
             Loading database bookings...
           </div>
@@ -163,11 +190,30 @@ export function BookingsTab({
                     {(b.service || "").toUpperCase()} ({b.mode}) · {b.pickup_date} {b.pickup_slot} ·{" "}
                     <strong>₹{b.estimated_price}</strong>
                   </p>
-                  {b.address && (
-                    <p className="text-[10px] text-muted-foreground font-semibold">
-                      Address: {b.address}
-                    </p>
-                  )}
+                  {b.address && (() => {
+                    const match = b.address.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
+                    if (match) {
+                      const cleanAddress = b.address.replace(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/, "").trim();
+                      return (
+                        <p className="text-[10px] text-muted-foreground font-semibold">
+                          Address: {cleanAddress}{" "}
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-teal hover:underline ml-1 font-bold"
+                          >
+                            📍 View on Maps
+                          </a>
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-[10px] text-muted-foreground font-semibold">
+                        Address: {b.address}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   {isLocalMode && (
@@ -346,6 +392,120 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="block text-[9px] font-bold text-muted-foreground uppercase">{label}</label>
       {children}
+    </div>
+  );
+}
+
+import { useEffect, useRef } from "react";
+
+function BookingsMap({ bookings }: { bookings: BookingRow[] }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    const loadLeaflet = async () => {
+      if ((window as any).L) return;
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+
+      return new Promise<void>((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = () => resolve();
+        document.body.appendChild(script);
+      });
+    };
+
+    loadLeaflet().then(() => {
+      const L = (window as any).L;
+      if (!L || !mapRef.current) return;
+
+      if (!leafletMap.current) {
+        leafletMap.current = L.map(mapRef.current).setView([12.9716, 77.5946], 12);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(leafletMap.current);
+      }
+
+      // Clear existing markers
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+
+      // Add pins for active bookings
+      bookings.forEach((b) => {
+        if (!b.address) return;
+        const match = b.address.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
+        if (!match) return;
+
+        const latStr = match[1];
+        const lngStr = match[2];
+        if (!latStr || !lngStr) return;
+
+        const lat = parseFloat(latStr);
+        const lng = parseFloat(lngStr);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        // Custom colored markers using SVG DivIcon
+        const color = getMarkerColor(b.status);
+        const icon = L.divIcon({
+          className: "custom-div-icon",
+          html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
+
+        const popupContent = `
+          <div style="font-family: sans-serif; font-size: 11px; padding: 2px;">
+            <strong style="color: #0F172A; text-transform: uppercase;">${b.order_ref}</strong>
+            <div style="margin-top: 4px; font-weight: bold;">${b.customer_name}</div>
+            <div style="color: #6B7280; margin-top: 2px;">${(b.service || "").toUpperCase()} (${b.mode})</div>
+            <div style="color: #6B7280; margin-top: 2px;">Pickup: ${b.pickup_date} · ${b.pickup_slot}</div>
+            <div style="margin-top: 6px; display: inline-block; padding: 2px 6px; border-radius: 9999px; background: ${color}20; color: ${color}; font-weight: 800; font-size: 9px; text-transform: uppercase;">${b.status}</div>
+          </div>
+        `;
+
+        const marker = L.marker([lat, lng], { icon })
+          .addTo(leafletMap.current)
+          .bindPopup(popupContent);
+
+        markersRef.current.push(marker);
+      });
+    });
+
+    return () => {
+      // Don't tear down map instance instantly to allow smooth switching, but clean on tab unmount
+    };
+  }, [bookings]);
+
+  const getMarkerColor = (status: string) => {
+    switch (status) {
+      case "delivered": return "#14B8A6";
+      case "cancelled": return "#EF4444";
+      case "out_for_delivery": return "#2563EB";
+      case "confirmed": return "#6B7280";
+      default: return "#F59E0B";
+    }
+  };
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div
+        ref={mapRef}
+        className="h-96 rounded-2xl border border-border overflow-hidden bg-secondary shadow-soft z-10"
+        style={{ minHeight: "400px" }}
+      />
+      <div className="flex flex-wrap gap-4 items-center justify-center py-2 text-[10px] font-bold tracking-wider text-muted-foreground uppercase border-t border-border bg-card rounded-xl">
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6B7280] block" /> Confirmed</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] block" /> In Progress</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] block" /> Out For Delivery</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#14B8A6] block" /> Delivered</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] block" /> Cancelled</div>
+      </div>
     </div>
   );
 }
