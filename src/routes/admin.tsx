@@ -18,6 +18,40 @@ import {
   assignDriver,
   makeMeAdmin,
 } from "@/lib/admin-actions";
+import { OverviewTab } from "@/features/admin/overview-tab";
+import { BookingInspectorDrawer } from "@/features/admin/booking-inspector-drawer";
+import { BookingsTab } from "@/features/admin/bookings-tab";
+import { BlockedDatesTab } from "@/features/admin/blocked-dates-tab";
+import { ServicesTab } from "@/features/admin/services-tab";
+import { CoverageTab } from "@/features/admin/coverage-tab";
+import { TextsTab } from "@/features/admin/texts-tab";
+import { ImagesTab } from "@/features/admin/images-tab";
+import { FaqsTab } from "@/features/admin/faqs-tab";
+import { TeamTab } from "@/features/admin/team-tab";
+import { DispatchBoard } from "@/features/admin/dispatch-board";
+import { SlotPlanner } from "@/features/admin/slot-planner";
+import { CustomerCrm } from "@/features/admin/customer-crm";
+import {
+  Calendar,
+  DollarSign,
+  Settings,
+  Image as ImageIcon,
+  MapPin,
+  MessageSquare,
+  Save,
+  RotateCcw,
+  Clock,
+  Lock,
+  Unlock,
+  LogOut,
+  Users,
+  LayoutDashboard,
+  Truck,
+  Star,
+  ClipboardList,
+  Compass,
+} from "lucide-react";
+import type { BookingRow, BlockedDateRow, UserRow } from "@/features/admin/types";
 import { useCatalog } from "@/lib/catalog-state";
 import type { CatalogSettings } from "@/lib/catalog-actions";
 import {
@@ -35,31 +69,6 @@ import {
   type CmsImages,
   type FaqCategory,
 } from "@/lib/cms-content";
-import { BookingsTab } from "@/features/admin/bookings-tab";
-import { BlockedDatesTab } from "@/features/admin/blocked-dates-tab";
-import { ServicesTab } from "@/features/admin/services-tab";
-import { CoverageTab } from "@/features/admin/coverage-tab";
-import { TextsTab } from "@/features/admin/texts-tab";
-import { ImagesTab } from "@/features/admin/images-tab";
-import { FaqsTab } from "@/features/admin/faqs-tab";
-import { TeamTab } from "@/features/admin/team-tab";
-import {
-  Calendar,
-  DollarSign,
-  Settings,
-  Image as ImageIcon,
-  MapPin,
-  MessageSquare,
-  Save,
-  RotateCcw,
-  Clock,
-  Lock,
-  Unlock,
-  LogOut,
-  Users,
-} from "lucide-react";
-import type { BookingRow, BlockedDateRow, UserRow } from "@/features/admin/types";
-
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [{ title: "Admin Dashboard — SpinShine Control Panel" }],
@@ -68,7 +77,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 type TabKey =
+  | "overview"
   | "bookings"
+  | "dispatch"
+  | "slots"
+  | "crm"
   | "blocked"
   | "services"
   | "coverage"
@@ -84,7 +97,24 @@ function AdminPage() {
   const [myId, setMyId] = useState<string | undefined>(undefined);
 
   const [authState, setAuthState] = useState<AuthState>("loading");
-  const [activeTab, setActiveTab] = useState<TabKey>("bookings");
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab) return tab as TabKey;
+    }
+    return "overview";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", activeTab);
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, [activeTab]);
+
+  const [inspectorBookingId, setInspectorBookingId] = useState<string | null>(null);
 
   // Bookings & blocked dates (database-driven with local fallback)
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -164,6 +194,22 @@ function AdminPage() {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
     } else {
       alert("Failed to update role: " + res.error);
+    }
+  };
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this user profile?")) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+      if (error) alert("Error deleting user: " + error.message);
+      else {
+        alert("User profile deleted successfully.");
+        fetchTeam();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -316,150 +362,267 @@ function AdminPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
-      <main className="flex-1 pt-28 pb-16 px-6">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="flex flex-wrap justify-between items-center gap-4 bg-card border border-border p-6 rounded-2xl shadow-soft">
+      <main className="flex-1 pt-24 pb-16 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8 items-start">
+          {/* Collapsible/Sticky Sidebar Navigation */}
+          <aside className="w-full md:w-64 bg-card border border-border rounded-2xl p-5 shrink-0 shadow-soft space-y-6">
             <div>
-              <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
-                <Unlock size={22} className="text-teal" /> SpinShine Control Panel
-              </h1>
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                <span>
-                  Manage bookings, rates, coverage, and editorial content in the database.
-                </span>
-                {isLocalMode && (
-                  <span className="bg-amber-100 border border-amber-300 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
-                    Local Storage Mode
-                  </span>
-                )}
-              </p>
+              <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Operations Control</h2>
+              <div className="mt-3 space-y-1">
+                {[
+                  { k: "overview", l: "Overview Hub", i: <LayoutDashboard size={14} /> },
+                  { k: "bookings", l: "Active Bookings", i: <Clock size={14} /> },
+                  { k: "dispatch", l: "Dispatch Board", i: <Truck size={14} /> },
+                  { k: "slots", l: "Slot Planner", i: <Calendar size={14} /> },
+                ].map((t) => (
+                  <button
+                    key={t.k}
+                    onClick={() => setActiveTab(t.k as TabKey)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === t.k
+                        ? "bg-royal/10 text-royal font-extrabold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {t.i} {t.l}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
-              <button
-                onClick={fetchDatabaseData}
-                className="flex items-center gap-2 rounded-full border border-border bg-background px-4.5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-secondary transition-colors"
+
+            <div>
+              <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Directories</h2>
+              <div className="mt-3 space-y-1">
+                {[
+                  { k: "crm", l: "Customer CRM", i: <ClipboardList size={14} /> },
+                  { k: "team", l: "Team & Roles", i: <Users size={14} /> },
+                  { k: "blocked", l: "Blocked Dates", i: <Calendar size={14} /> },
+                ].map((t) => (
+                  <button
+                    key={t.k}
+                    onClick={() => setActiveTab(t.k as TabKey)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === t.k
+                        ? "bg-royal/10 text-royal font-extrabold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {t.i} {t.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Configuration</h2>
+              <div className="mt-3 space-y-1">
+                {[
+                  { k: "services", l: "Services & Rates", i: <DollarSign size={14} /> },
+                  { k: "coverage", l: "Localities & Radius", i: <MapPin size={14} /> },
+                ].map((t) => (
+                  <button
+                    key={t.k}
+                    onClick={() => setActiveTab(t.k as TabKey)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === t.k
+                        ? "bg-royal/10 text-royal font-extrabold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {t.i} {t.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Web Content</h2>
+              <div className="mt-3 space-y-1">
+                {[
+                  { k: "texts", l: "CMS Texts", i: <Settings size={14} /> },
+                  { k: "images", l: "CMS Images", i: <ImageIcon size={14} /> },
+                  { k: "faqs", l: "CMS FAQs", i: <MessageSquare size={14} /> },
+                ].map((t) => (
+                  <button
+                    key={t.k}
+                    onClick={() => setActiveTab(t.k as TabKey)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === t.k
+                        ? "bg-royal/10 text-royal font-extrabold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    {t.i} {t.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            <div className="space-y-2">
+              <Link
+                to="/dashboard"
+                className="w-full py-2.5 rounded-xl border border-border bg-background text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Clock size={14} /> Refresh DB
-              </button>
-              <button
-                onClick={handleResetToDefaults}
-                className="flex items-center gap-2 rounded-full border border-royal/30 bg-royal/5 px-4.5 py-2 text-xs font-bold text-royal uppercase tracking-wider hover:bg-royal/10 transition-colors"
-              >
-                <RotateCcw size={14} /> Reset Defaults
-              </button>
+                <Compass size={13} /> Crew Workspace
+              </Link>
               <button
                 onClick={handleSaveConfig}
-                className="flex items-center gap-2 rounded-full bg-navy text-white px-5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-royal hover:shadow-glow transition-all"
+                className="w-full py-2.5 rounded-xl bg-navy text-white text-xs font-bold uppercase tracking-wider hover:bg-royal hover:shadow-glow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Save size={14} /> Save Config
+                <Save size={13} /> Save Config
               </button>
               <button
                 onClick={signOut}
-                className="flex items-center gap-2 rounded-full border border-border bg-background px-4.5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-secondary transition-colors"
+                className="w-full py-2.5 rounded-xl border border-border bg-background hover:bg-secondary text-xs font-bold text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <LogOut size={14} /> Sign out
+                <LogOut size={13} /> Sign Out
               </button>
             </div>
-          </div>
+          </aside>
 
-          <div className="flex flex-wrap gap-2 border-b border-border pb-px overflow-x-auto">
-            {(
-              [
-                { k: "bookings", l: "Bookings", i: <Clock size={14} /> },
-                { k: "blocked", l: "Blocked Dates", i: <Calendar size={14} /> },
-                { k: "services", l: "Services & Rates", i: <DollarSign size={14} /> },
-                { k: "coverage", l: "Localities & Radius", i: <MapPin size={14} /> },
-                { k: "texts", l: "CMS Texts", i: <Settings size={14} /> },
-                { k: "images", l: "CMS Images", i: <ImageIcon size={14} /> },
-                { k: "faqs", l: "CMS FAQs", i: <MessageSquare size={14} /> },
-                { k: "team", l: "Team & Roles", i: <Users size={14} /> },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.k}
-                onClick={() => setActiveTab(tab.k)}
-                className={`flex items-center gap-2 px-4.5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
-                  activeTab === tab.k
-                    ? "border-teal text-teal font-extrabold"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.i} {tab.l}
-              </button>
-            ))}
-          </div>
+          {/* Main Module Content */}
+          <div className="flex-1 w-full space-y-6 overflow-hidden">
+            {/* Top Operational bar */}
+            <div className="flex flex-wrap justify-between items-center gap-4 bg-card border border-border p-5 rounded-2xl shadow-soft">
+              <div>
+                <h1 className="text-xl font-black text-foreground flex items-center gap-2 capitalize">
+                  <Unlock size={18} className="text-teal" /> {activeTab.replace(/_/g, " ")} Workspace
+                </h1>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  SpinShine Enterprise Dashboard {isLocalMode && "· Local Sandbox Active"}
+                </p>
+              </div>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={fetchDatabaseData}
+                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-secondary transition-colors cursor-pointer"
+                >
+                  <Clock size={12} /> Sync DB
+                </button>
+                <button
+                  onClick={handleResetToDefaults}
+                  className="flex items-center gap-1.5 rounded-xl border border-royal/30 bg-royal/5 px-3.5 py-2 text-xs font-bold text-royal uppercase tracking-wider hover:bg-royal/10 transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={12} /> Reset Defaults
+                </button>
+              </div>
+            </div>
 
-          {activeTab === "bookings" && (
-            <div className="animate-fade-in">
-              <BookingsTab
-                bookings={bookings}
-                loading={loadingDb}
-                isLocalMode={isLocalMode}
-                services={services}
-                users={users}
-                onAssign={handleAssign}
-                onChanged={fetchDatabaseData}
-              />
-            </div>
-          )}
-          {activeTab === "blocked" && (
-            <div className="animate-fade-in">
-              <BlockedDatesTab
-                blockedDays={blockedDays}
-                isLocalMode={isLocalMode}
-                onChanged={fetchDatabaseData}
-              />
-            </div>
-          )}
-          {activeTab === "services" && (
-            <div className="animate-fade-in">
-              <ServicesTab services={services} setServices={setServices} />
-            </div>
-          )}
-          {activeTab === "coverage" && (
-            <div className="animate-fade-in">
-              <CoverageTab
-                localities={localities}
-                setLocalities={setLocalities}
-                radiusKm={settings.radiusKm}
-                setRadiusKm={(n) => setSettings((s) => ({ ...s, radiusKm: n }))}
-                capacityPerSlot={settings.capacityPerSlot}
-                setCapacityPerSlot={(n) => setSettings((s) => ({ ...s, capacityPerSlot: n }))}
-                deliveryDays={settings.deliveryDays}
-                setDeliveryDays={(n) => setSettings((s) => ({ ...s, deliveryDays: n }))}
-                onsiteFee={settings.onsiteFee}
-                setOnsiteFee={(n) => setSettings((s) => ({ ...s, onsiteFee: n }))}
-                maxQuantity={settings.maxQuantity}
-                setMaxQuantity={(n) => setSettings((s) => ({ ...s, maxQuantity: n }))}
-              />
-            </div>
-          )}
-          {activeTab === "texts" && (
-            <div className="animate-fade-in">
-              <TextsTab texts={cmsTexts} setTexts={setCmsTexts} />
-            </div>
-          )}
-          {activeTab === "images" && (
-            <div className="animate-fade-in">
-              <ImagesTab images={cmsImages} setImages={setCmsImages} />
-            </div>
-          )}
-          {activeTab === "faqs" && (
-            <div className="animate-fade-in">
-              <FaqsTab faqs={cmsFaqs} setFaqs={setCmsFaqs} />
-            </div>
-          )}
-          {activeTab === "team" && (
-            <div className="animate-fade-in">
-              <TeamTab
-                users={users}
-                meId={myId}
-                onSetRole={handleSetRole}
-                onRefresh={fetchTeam}
-              />
-            </div>
-          )}
+            {/* Modules switch */}
+            {activeTab === "overview" && (
+              <div className="animate-fade-in">
+                <OverviewTab bookings={bookings} usersCount={users.length} />
+              </div>
+            )}
+            {activeTab === "bookings" && (
+              <div className="animate-fade-in">
+                <BookingsTab
+                  bookings={bookings}
+                  loading={loadingDb}
+                  isLocalMode={isLocalMode}
+                  services={services}
+                  users={users}
+                  onAssign={handleAssign}
+                  onChanged={fetchDatabaseData}
+                  onInspectBooking={setInspectorBookingId}
+                />
+              </div>
+            )}
+            {activeTab === "dispatch" && (
+              <div className="animate-fade-in">
+                <DispatchBoard
+                  bookings={bookings}
+                  users={users}
+                  onAssign={handleAssign}
+                  onChanged={fetchDatabaseData}
+                />
+              </div>
+            )}
+            {activeTab === "slots" && (
+              <div className="animate-fade-in">
+                <SlotPlanner
+                  bookings={bookings}
+                  capacityPerSlot={settings.capacityPerSlot}
+                  onChanged={fetchDatabaseData}
+                />
+              </div>
+            )}
+            {activeTab === "crm" && (
+              <div className="animate-fade-in">
+                <CustomerCrm bookings={bookings} />
+              </div>
+            )}
+            {activeTab === "blocked" && (
+              <div className="animate-fade-in">
+                <BlockedDatesTab
+                  blockedDays={blockedDays}
+                  isLocalMode={isLocalMode}
+                  onChanged={fetchDatabaseData}
+                />
+              </div>
+            )}
+            {activeTab === "services" && (
+              <div className="animate-fade-in">
+                <ServicesTab services={services} setServices={setServices} />
+              </div>
+            )}
+            {activeTab === "coverage" && (
+              <div className="animate-fade-in">
+                <CoverageTab
+                  localities={localities}
+                  setLocalities={setLocalities}
+                  radiusKm={settings.radiusKm}
+                  setRadiusKm={(n) => setSettings((s) => ({ ...s, radiusKm: n }))}
+                  capacityPerSlot={settings.capacityPerSlot}
+                  setCapacityPerSlot={(n) => setSettings((s) => ({ ...s, capacityPerSlot: n }))}
+                  deliveryDays={settings.deliveryDays}
+                  setDeliveryDays={(n) => setSettings((s) => ({ ...s, deliveryDays: n }))}
+                  onsiteFee={settings.onsiteFee}
+                  setOnsiteFee={(n) => setSettings((s) => ({ ...s, onsiteFee: n }))}
+                  maxQuantity={settings.maxQuantity}
+                  setMaxQuantity={(n) => setSettings((s) => ({ ...s, maxQuantity: n }))}
+                />
+              </div>
+            )}
+            {activeTab === "texts" && (
+              <div className="animate-fade-in">
+                <TextsTab texts={cmsTexts} setTexts={setCmsTexts} />
+              </div>
+            )}
+            {activeTab === "images" && (
+              <div className="animate-fade-in">
+                <ImagesTab images={cmsImages} setImages={setCmsImages} />
+              </div>
+            )}
+            {activeTab === "faqs" && (
+              <div className="animate-fade-in">
+                <FaqsTab faqs={cmsFaqs} setFaqs={setCmsFaqs} />
+              </div>
+            )}
+            {activeTab === "team" && (
+              <div className="animate-fade-in">
+                <TeamTab
+                  users={users}
+                  meId={myId}
+                  onSetRole={handleSetRole}
+                  onRefresh={fetchTeam}
+                  onDeleteUser={handleDeleteUser}
+                />
+              </div>
+            )}
+          </div>
         </div>
+
+        <BookingInspectorDrawer
+          bookingId={inspectorBookingId}
+          onClose={() => setInspectorBookingId(null)}
+          bookings={bookings}
+          users={users}
+          onAssign={handleAssign}
+          onChanged={fetchDatabaseData}
+        />
       </main>
       <Footer />
     </div>

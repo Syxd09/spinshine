@@ -46,6 +46,7 @@ type Booking = {
   delivery_slot: string | null;
   status: string;
   estimated_price: number;
+  address?: string | null;
 };
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
@@ -167,6 +168,7 @@ function TrackPage() {
             delivery_slot: match.delivery_slot,
             status: match.status,
             estimated_price: match.estimated_price,
+            address: match.address || null,
           });
           setLoading(false);
           return;
@@ -322,6 +324,17 @@ function TrackPage() {
                   </ol>
                 </div>
 
+                {/* Live tracking map block */}
+                {result.address && (result.status === "out_for_delivery" || result.status === "collected") && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest flex justify-between items-center">
+                      <span>Live Delivery Dispatch Map:</span>
+                      <span className="text-teal font-extrabold animate-pulse">● Active Tracking</span>
+                    </h3>
+                    <LiveTrackingMap address={result.address} status={result.status} />
+                  </div>
+                )}
+
                 <div className="mt-8 grid gap-4 border-t border-border pt-6 text-xs sm:grid-cols-2">
                   <div className="p-4 rounded-xl border border-border bg-secondary/10">
                     <span className="text-muted-foreground font-semibold">Registered Pickup</span>
@@ -357,6 +370,107 @@ function TrackPage() {
       </main>
 
       <Footer />
+    </div>
+  );
+}
+
+import { useRef as tRef } from "react";
+
+function LiveTrackingMap({ address, status }: { address: string; status: string }) {
+  const mapRef = tRef<HTMLDivElement>(null);
+  const leafletMap = tRef<any>(null);
+  const driverMarker = tRef<any>(null);
+  const intervalRef = tRef<any>(null);
+
+  const gpsMatch = address.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
+  if (!gpsMatch) return null;
+
+  const custLat = parseFloat(gpsMatch[1]!);
+  const custLng = parseFloat(gpsMatch[2]!);
+
+  useEffect(() => {
+    const loadLeaflet = async () => {
+      if ((window as any).L) return;
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+
+      return new Promise<void>((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = () => resolve();
+        document.body.appendChild(script);
+      });
+    };
+
+    loadLeaflet().then(() => {
+      const L = (window as any).L;
+      if (!L || !mapRef.current) return;
+
+      // Start driver slightly offset (e.g. +0.007)
+      let dLat = custLat + 0.006;
+      let dLng = custLng + 0.006;
+
+      if (!leafletMap.current) {
+        leafletMap.current = L.map(mapRef.current).setView([custLat, custLng], 14);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(leafletMap.current);
+
+        // Customer icon
+        const custIcon = L.divIcon({
+          html: `<div class="w-6 h-6 rounded-full bg-teal border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-lift">🏠</div>`,
+          className: "",
+          iconSize: [24, 24]
+        });
+
+        // Driver icon
+        const drvIcon = L.divIcon({
+          html: `<div class="w-8 h-8 rounded-full bg-royal border-2 border-white flex items-center justify-center text-white text-xs shadow-glow animate-bounce">🚚</div>`,
+          className: "",
+          iconSize: [32, 32]
+        });
+
+        L.marker([custLat, custLng], { icon: custIcon }).addTo(leafletMap.current)
+          .bindPopup("Customer delivery destination")
+          .openPopup();
+
+        driverMarker.current = L.marker([dLat, dLng], { icon: drvIcon }).addTo(leafletMap.current)
+          .bindPopup("SpinShine delivery courier");
+
+        // Simple interpolation interval simulating a moving driver
+        intervalRef.current = setInterval(() => {
+          // Move 5% closer each step
+          dLat = dLat + (custLat - dLat) * 0.04;
+          dLng = dLng + (custLng - dLng) * 0.04;
+          
+          if (driverMarker.current) {
+            driverMarker.current.setLatLng([dLat, dLng]);
+          }
+
+          // Stop when extremely close
+          if (Math.abs(dLat - custLat) < 0.0001 && Math.abs(dLng - custLng) < 0.0001) {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+          }
+        }, 3000);
+      }
+    });
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+      }
+    };
+  }, [custLat, custLng]);
+
+  return (
+    <div className="w-full h-64 rounded-2xl border border-border overflow-hidden shadow-soft">
+      <div ref={mapRef} className="w-full h-full" />
     </div>
   );
 }

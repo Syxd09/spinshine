@@ -12,6 +12,7 @@ type Props = {
   users: UserRow[];
   onAssign: (bookingId: string, column: "technician" | "driver", userId: string | null) => void;
   onChanged: () => void;
+  onInspectBooking: (id: string) => void;
 };
 
 export function BookingsTab({
@@ -22,6 +23,7 @@ export function BookingsTab({
   users,
   onAssign,
   onChanged,
+  onInspectBooking,
 }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -216,6 +218,12 @@ export function BookingsTab({
                   })()}
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onInspectBooking(b.id)}
+                    className="px-3.5 py-1.5 rounded-lg border border-royal/30 bg-royal/5 text-royal text-xs font-bold uppercase tracking-wider hover:bg-royal/10 transition-colors cursor-pointer"
+                  >
+                    Inspect
+                  </button>
                   {isLocalMode && (
                     <button
                       onClick={() => onChanged()}
@@ -438,6 +446,7 @@ function BookingsMap({ bookings }: { bookings: BookingRow[] }) {
 
       // Add pins for active bookings
       bookings.forEach((b) => {
+        if (b.status === "cancelled" || b.status === "delivered") return;
         if (!b.address) return;
         const match = b.address.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
         if (!match) return;

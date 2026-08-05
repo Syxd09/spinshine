@@ -249,18 +249,19 @@ export async function saveCms({ data }: { data: { texts: unknown; images: unknow
 
 export async function listUsers(): Promise<{ success: boolean; error: string | null; data?: any[] }> {
   try {
-    const { data: profiles, error } = await supabase
+    const { data: profiles, error } = await (supabase as any)
       .from("profiles")
-      .select("id, role, full_name, phone, created_at");
+      .select("id, role, full_name, phone, created_at, is_on_duty");
     if (error) return { success: false, error: error.message };
 
-    const users = (profiles ?? []).map((p) => ({
+    const users = (profiles ?? []).map((p: any) => ({
       id: p.id,
       email: p.full_name ? `${p.full_name.toLowerCase().replace(/\s+/g, "")}@spinshine.com` : "staff@spinshine.com",
       role: p.role,
       full_name: p.full_name,
       phone: p.phone,
       created_at: p.created_at,
+      is_on_duty: p.is_on_duty,
     }));
     return { success: true, error: null, data: users };
   } catch (err) {

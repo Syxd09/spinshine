@@ -24,6 +24,7 @@ export type BookingRow = {
   assigned_driver_id?: string | null;
   status_history?: { status: string; at: string; by?: string | null; byRole?: string | null }[];
   cancellation_reason?: string | null;
+  notes?: string | null;
 };
 
 export type PaymentRow = {
@@ -44,6 +45,7 @@ export type UserRow = {
   full_name?: string | null;
   phone?: string | null;
   created_at: string;
+  is_on_duty?: boolean;
 };
 
 export type BlockedDateRow = {
